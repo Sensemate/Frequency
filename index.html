@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Frequency — Semantic Music Visualization</title>
+  <meta name="description" content="Frequency — Browser-basiertes Visualisierungssystem, das Live-Audio in Echtzeit semantisch analysiert und in adaptive visuelle Choreografie übersetzt.">
+
+  <!-- Open Graph for nicer link previews when shared on LinkedIn / messengers -->
+  <meta property="og:title" content="Frequency — Semantic Music Visualization">
+  <meta property="og:description" content="Live-Audio semantisch analysiert, in adaptive visuelle Choreografie übersetzt. Browser-basiert, WebGL/GLSL.">
+  <meta property="og:type" content="website">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: #0a0712;
+      color: #e8ecf5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* The visualization fills the whole window — no chrome around it.
+       This keeps the demo feeling like an artifact, not a marketing page. */
+    .frame {
+      position: fixed; inset: 0;
+      width: 100%; height: 100%;
+      border: none;
+      background: #0a0712;
+    }
+
+    /* Welcome overlay — appears on first load, fades away on click.
+       Uses semi-transparent backdrop so the visualization still
+       breathes through underneath. */
+    .welcome {
+      position: fixed; inset: 0;
+      z-index: 100;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(10, 7, 18, 0.78);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      transition: opacity 0.6s ease, visibility 0.6s ease;
+      cursor: pointer;
+      padding: 24px;
+    }
+    .welcome.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .welcome-card {
+      max-width: 520px;
+      text-align: center;
+      pointer-events: none; /* clicks pass through to the welcome backdrop */
+    }
+
+    .brand-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: rgba(232, 236, 245, 0.55);
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      font-size: clamp(32px, 5vw, 48px);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin-bottom: 14px;
+      background: linear-gradient(135deg, #ffe5c4 0%, #c4a3ff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .tagline {
+      font-size: 16px;
+      line-height: 1.55;
+      color: rgba(232, 236, 245, 0.78);
+      margin-bottom: 32px;
+      max-width: 440px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .instructions {
+      font-size: 13px;
+      line-height: 1.7;
+      color: rgba(232, 236, 245, 0.6);
+      margin-bottom: 28px;
+      text-align: left;
+      max-width: 380px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .instructions ol {
+      list-style: none;
+      counter-reset: step;
+    }
+    .instructions li {
+      counter-increment: step;
+      padding: 6px 0 6px 32px;
+      position: relative;
+    }
+    .instructions li::before {
+      content: counter(step);
+      position: absolute;
+      left: 0; top: 6px;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: rgba(230, 170, 110, 0.18);
+      color: #ffe5c4;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .enter-cta {
+      display: inline-block;
+      padding: 14px 32px;
+      background: rgba(230, 170, 110, 0.18);
+      border: 1px solid rgba(230, 170, 110, 0.4);
+      border-radius: 4px;
+      color: #ffe5c4;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      pointer-events: auto;
+      transition: all 0.3s ease;
+    }
+    .enter-cta:hover {
+      background: rgba(230, 170, 110, 0.28);
+      transform: translateY(-1px);
+      box-shadow: 0 0 24px rgba(255, 200, 140, 0.2);
+    }
+
+    .meta-footer {
+      position: fixed;
+      bottom: 16px; right: 18px;
+      z-index: 50;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 1.5px;
+      color: rgba(232, 236, 245, 0.3);
+      pointer-events: auto;
+    }
+    .meta-footer a {
+      color: rgba(232, 236, 245, 0.55);
+      text-decoration: none;
+      transition: color 0.3s;
+    }
+    .meta-footer a:hover { color: #ffe5c4; }
+
+    @media (max-width: 600px) {
+      .welcome-card { padding: 0 8px; }
+      .meta-footer { font-size: 8px; bottom: 8px; right: 10px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- The full v6 visualization, embedded as iframe.
+       allow attributes give it the permissions it needs:
+         - autoplay: for audio playback without click-to-start friction
+         - microphone: needed for getUserMedia fallback paths if any
+         - display-capture: required for getDisplayMedia (System Audio)
+       sandbox is intentionally NOT set so all v6 features work normally. -->
+  <iframe
+    class="frame"
+    src="./interference-v6.html"
+    allow="autoplay; microphone; display-capture; fullscreen"
+    title="Frequency — Interference v6"
+  ></iframe>
+
+  <!-- Welcome overlay — fades away on click anywhere -->
+  <div class="welcome" id="welcome">
+    <div class="welcome-card">
+      <div class="brand-tag">Frequency · Semantic Music Visualization</div>
+      <h1>Interference v6</h1>
+      <p class="tagline">
+        Live-Audio wird in Echtzeit semantisch analysiert und als adaptive visuelle Choreografie ausgegeben.
+        Vier Bewegungs-Personalities — Flow, Groove, Drive, Burst — übersetzen Musik in Bewegungssprache.
+      </p>
+
+      <div class="instructions">
+        <ol>
+          <li>Im Visualisierer auf <strong>System Audio</strong> klicken</li>
+          <li>Den Browser-Tab mit deiner Musik auswählen und die Audiofreigabe aktivieren</li>
+          <li>Mit <strong>T</strong> zwischen Modi wechseln, mit <strong>P</strong> die Palette tauschen, <strong>M</strong> öffnet das Mapping-Panel</li>
+        </ol>
+      </div>
+
+      <button class="enter-cta" id="enterBtn">Enter Visualization</button>
+    </div>
+  </div>
+
+  <!-- Tiny attribution footer — useful for portfolio context.
+       Visible after the welcome overlay fades away. -->
+  <div class="meta-footer">
+    <a href="https://github.com/Sensemate/Frequency" target="_blank" rel="noopener">github · Sensemate/Frequency</a>
+  </div>
+
+  <script>
+    /* Welcome overlay dismissal — click anywhere to enter.
+       The first user gesture also unlocks audio context restrictions
+       in Chromium (autoplay policy), which v6 needs anyway. */
+    const welcome = document.getElementById('welcome');
+    const dismiss = () => welcome.classList.add('hidden');
+
+    document.getElementById('enterBtn').addEventListener('click', dismiss);
+    welcome.addEventListener('click', dismiss);
+
+    /* Press Escape or any key to dismiss too — keyboard-friendly. */
+    document.addEventListener('keydown', (e) => {
+      if (!welcome.classList.contains('hidden')) {
+        dismiss();
+      }
+    }, { once: true });
+  </script>
+</body>
+</html>
