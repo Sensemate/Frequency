@@ -1,0 +1,2328 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<title>Frequency — Interference v6 Semantic Interference</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400&display=swap');
+
+  :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    background: #05050c; color: #e8ecf5;
+    font-family: 'Outfit', sans-serif;
+    overflow: hidden; height: 100%; width: 100%;
+    user-select: none; -webkit-user-select: none;
+    touch-action: manipulation; overscroll-behavior: none;
+  }
+
+  canvas {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    opacity: 0; transition: opacity 2.2s ease-out;
+  }
+  canvas.booted { opacity: 1; }
+
+  .ui {
+    position: fixed; inset: 0; z-index: 10;
+    pointer-events: none;
+    display: flex; flex-direction: column;
+    justify-content: space-between;
+    padding:
+      calc(26px + var(--safe-top))
+      calc(30px + var(--safe-right))
+      calc(26px + var(--safe-bottom))
+      calc(30px + var(--safe-left));
+  }
+
+  .top-left {
+    pointer-events: auto; max-width: 480px;
+    opacity: 0; transform: translateY(-4px);
+    animation: ui-in 1.3s ease-out 2.0s forwards;
+  }
+  @keyframes ui-in { to { opacity: 1; transform: translateY(0); } }
+
+  .brand {
+    font-size: 9px; font-weight: 300; letter-spacing: 6px;
+    text-transform: uppercase; opacity: 0.42;
+    text-shadow: 0 1px 12px rgba(0,0,0,0.8);
+  }
+  .mode-tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+    padding: 3px 8px; margin-top: 10px;
+    border: 1px solid rgba(210,180,230,0.34);
+    border-radius: 3px; opacity: 0.82; color: #e0c8ec;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.8);
+  }
+  .title {
+    font-size: clamp(28px, 5vw, 36px);
+    font-weight: 500; letter-spacing: -0.5px;
+    text-shadow: 0 2px 24px rgba(0,0,0,0.8);
+    margin-top: 8px;
+  }
+  .subtitle {
+    font-size: 12px; font-weight: 300; opacity: 0.62;
+    line-height: 1.6; margin-top: 8px;
+    text-shadow: 0 1px 12px rgba(0,0,0,0.7);
+  }
+
+  .bottom {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 12px; pointer-events: auto;
+    opacity: 0; transform: translateY(10px);
+    animation: ui-in 1.2s ease-out 2.3s forwards;
+  }
+
+  .audio-zone {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 10px; width: 100%; max-width: 460px;
+  }
+
+  .now-playing {
+    font-size: 11px; opacity: 0.55; letter-spacing: 0.3px;
+    text-align: center; max-width: 320px;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.7);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    min-height: 14px;
+  }
+
+  .playback-controls {
+    display: flex; gap: 10px; align-items: center; min-height: 48px;
+  }
+  .playback-controls.hidden { display: none; }
+
+  .play-btn {
+    width: 48px; height: 48px; border-radius: 50%;
+    border: 1px solid rgba(220,200,240,0.22);
+    background: rgba(12,10,22,0.55);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    color: #e8ecf5; font-size: 15px;
+    cursor: pointer; transition: all 0.3s;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0; flex: 0 0 auto;
+  }
+  .play-btn:hover, .play-btn:active {
+    border-color: rgba(235,180,110,0.6);
+    background: rgba(65,50,30,0.4);
+  }
+
+  .progress-bar {
+    width: 220px; max-width: 220px; height: 3px;
+    background: rgba(220,200,240,0.1);
+    border-radius: 2px; cursor: pointer; position: relative;
+  }
+  .progress-fill {
+    height: 100%; border-radius: 2px;
+    background: linear-gradient(90deg, rgba(120,180,240,0.75), rgba(235,170,110,0.75));
+    width: 0%; pointer-events: none;
+  }
+
+  .source-row {
+    display: flex; gap: 10px; flex-wrap: wrap;
+    justify-content: center; align-items: center;
+  }
+
+  .btn {
+    padding: 11px 22px; border-radius: 3px;
+    border: 1px solid rgba(220,200,240,0.18);
+    background: rgba(12,10,22,0.5);
+    backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px);
+    color: #e8ecf5; font-family: 'Outfit', sans-serif;
+    font-size: 12px; font-weight: 400;
+    cursor: pointer; transition: all 0.3s;
+    letter-spacing: 0.6px; white-space: nowrap;
+    min-height: 44px; text-transform: uppercase;
+  }
+  .btn:hover, .btn:active {
+    border-color: rgba(235,180,110,0.55);
+    background: rgba(45,35,25,0.35);
+  }
+  .btn.primary {
+    border-color: rgba(180,140,220,0.42);
+    background: rgba(55,40,85,0.25);
+  }
+  .btn.primary:hover, .btn.primary:active {
+    border-color: rgba(220,170,255,0.75);
+    background: rgba(85,60,120,0.35);
+  }
+  .btn.subtle {
+    font-size: 10px; padding: 9px 16px;
+    opacity: 0.6; min-height: 38px;
+  }
+  .btn.subtle:hover { opacity: 1; }
+  .btn[hidden] { display: none; }
+
+  /* Mode toggle — segmented control style, JetBrains Mono,
+     subtle Blorange-gold glow on active. Small enough to feel
+     like settings, prominent enough to be discoverable. */
+  .mode-toggle {
+    display: inline-flex; gap: 0;
+    margin-top: 14px;
+    border: 1px solid rgba(220,200,240,0.22);
+    border-radius: 3px; overflow: hidden;
+    background: rgba(12,10,22,0.45);
+    backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px);
+    pointer-events: auto;
+  }
+  .mode-btn {
+    padding: 7px 14px;
+    background: transparent; border: none;
+    color: rgba(232,236,245,0.55);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; letter-spacing: 2.4px; text-transform: uppercase;
+    cursor: pointer; transition: color 0.4s, background 0.4s, text-shadow 0.4s;
+    border-right: 1px solid rgba(220,200,240,0.12);
+    min-height: 32px;
+  }
+  .mode-btn:last-child { border-right: none; }
+  .mode-btn:hover { color: rgba(232,236,245,0.9); }
+  .mode-btn.active {
+    background: rgba(230,170,110,0.18);
+    color: #ffe5c4;
+    text-shadow: 0 0 8px rgba(255,200,140,0.4);
+  }
+
+  /* Palette selector — same pattern as mode-toggle but smaller,
+     visually secondary. Lives below the mode toggle. */
+  .palette-toggle {
+    display: inline-flex; gap: 0;
+    margin-top: 8px;
+    border: 1px solid rgba(220,200,240,0.14);
+    border-radius: 3px; overflow: hidden;
+    background: rgba(12,10,22,0.35);
+    backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px);
+    pointer-events: auto;
+  }
+  .palette-btn {
+    padding: 5px 11px;
+    background: transparent; border: none;
+    color: rgba(232,236,245,0.38);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px; letter-spacing: 2px; text-transform: uppercase;
+    cursor: pointer; transition: color 0.4s, background 0.4s;
+    border-right: 1px solid rgba(220,200,240,0.08);
+    min-height: 26px;
+  }
+  .palette-btn:last-child { border-right: none; }
+  .palette-btn:hover { color: rgba(232,236,245,0.7); }
+  .palette-btn.active {
+    background: rgba(170,155,210,0.12);
+    color: rgba(232,220,245,0.88);
+  }
+
+  .mapping-panel {
+    position: fixed;
+    right: calc(16px + var(--safe-right));
+    top: 50%; transform: translateY(-50%);
+    z-index: 10;
+    display: flex; flex-direction: column; gap: 7px;
+    opacity: 0; transition: opacity 0.6s;
+    pointer-events: none;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .mapping-panel.visible { opacity: 0.88; }
+
+  .panel-group-label {
+    font-size: 8px; letter-spacing: 2.5px;
+    text-transform: uppercase; opacity: 0.45;
+    padding-left: 92px;
+    margin-bottom: -3px; margin-top: 3px;
+  }
+  .panel-group-label:first-child { margin-top: 0; }
+
+  .map-row { display: flex; align-items: center; gap: 8px; }
+  .map-label {
+    font-size: 8px; letter-spacing: 1.25px;
+    text-transform: uppercase; opacity: 0.6;
+    width: 88px; text-align: right;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .map-bar-bg {
+    width: 64px; height: 2px;
+    background: rgba(220,200,240,0.12);
+    border-radius: 1px; overflow: hidden;
+  }
+  .map-bar {
+    height: 100%; border-radius: 1px;
+    background: rgba(220,220,255,0.6);
+    width: 0%; transition: width 0.05s linear;
+  }
+  .map-bar.b0 { background: rgba(255, 92, 48, 0.88); }
+  .map-bar.b1 { background: rgba(255, 155, 60, 0.88); }
+  .map-bar.b2 { background: rgba(230, 220, 240, 0.82); }
+  .map-bar.b3 { background: rgba(90, 180, 255, 0.88); }
+  .map-bar.b4 { background: rgba(140, 115, 245, 0.88); }
+  .map-bar.warm    { background: rgba(255,168,90,0.80); }
+  .map-bar.tense   { background: rgba(235,130,130,0.7); }
+  .map-bar.pulse   { background: rgba(255,200,130,0.8); }
+  .map-bar.core    { background: rgba(230,225,210,0.75); }
+  .map-bar.balance { background: linear-gradient(90deg, rgba(130,170,245,0.85), rgba(255,160,85,0.85)); }
+  .map-bar.semantic { background: rgba(180,210,255,0.74); }
+  .map-bar.noise    { background: rgba(175,180,190,0.76); }
+  .map-bar.novelty  { background: rgba(245,150,165,0.76); }
+  .map-bar.stable   { background: rgba(165,235,205,0.76); }
+  .map-bar.modelean { background: linear-gradient(90deg, rgba(115,150,245,0.85), rgba(255,190,105,0.85)); }
+
+  .numeric-val {
+    font-size: 9px; width: 32px; text-align: left;
+    opacity: 0.6; font-variant-numeric: tabular-nums;
+  }
+  .lead-val {
+    width: 54px; opacity: 0.72; letter-spacing: 0.8px;
+    text-transform: uppercase;
+  }
+
+  .fps {
+    position: fixed;
+    top: calc(8px + var(--safe-top));
+    right: calc(12px + var(--safe-right));
+    z-index: 20;
+    font-size: 9px; opacity: 0.28;
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    pointer-events: none; letter-spacing: 1px;
+  }
+
+  input[type="file"] { display: none; }
+  audio { display: none; }
+
+  .hint {
+    position: fixed;
+    bottom: calc(10px + var(--safe-bottom));
+    left: 50%; transform: translateX(-50%);
+    font-size: 9px; opacity: 0;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    pointer-events: none;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.7);
+    transition: opacity 0.5s; white-space: nowrap;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .hint.visible { opacity: 0.5; }
+
+  @media (max-width: 720px) {
+    .ui { padding: calc(20px + var(--safe-top)) calc(20px + var(--safe-right)) calc(20px + var(--safe-bottom)) calc(20px + var(--safe-left)); }
+    .title { font-size: 26px; }
+    .subtitle { font-size: 12px; max-width: 90vw; }
+    .mapping-panel { display: none; }
+    .source-row { flex-direction: column; gap: 8px; width: 100%; max-width: 280px; }
+    .source-row .btn:not(.subtle) { width: 100%; text-align: center; justify-content: center; }
+    .fps { display: none; }
+    .progress-bar { width: 160px; }
+  }
+  @media (max-width: 380px) {
+    .top-left { max-width: calc(100vw - 40px); }
+    .title { font-size: 22px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    canvas, .top-left, .bottom { transition: none; animation-duration: 0.3s !important; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+<input type="file" id="fileInput" accept="audio/*">
+<audio id="audioEl" preload="auto" playsinline></audio>
+
+<div class="ui">
+  <div class="top-left">
+    <div class="brand">Frequency</div>
+    <div class="title">Interference</div>
+    <div class="mode-tag" id="modeTag">v6 · Focus · Blorange</div>
+    <div class="subtitle" id="subtitle">
+      Semantic Interference: Musik wird als Flow, Groove, Drive und Burst gelesen.
+      Focus zeigt die volle, direkte Choreografie; Ambient übersetzt dieselbe Semantik
+      in größere Atemzüge, ruhigere Bewegung und längere Blicke.
+    </div>
+    <div class="mode-toggle">
+      <button class="mode-btn active" data-mode="focus" id="btnFocus">Focus</button>
+      <button class="mode-btn" data-mode="ambient" id="btnAmbient">Ambient</button>
+    </div>
+    <div class="palette-toggle">
+      <button class="palette-btn active" data-palette="blorange" id="btnBlorange">Blorange</button>
+      <button class="palette-btn" data-palette="aurora" id="btnAurora">Aurora</button>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="audio-zone">
+      <div class="now-playing" id="nowPlaying">&nbsp;</div>
+      <div class="playback-controls hidden" id="playbackControls">
+        <button class="play-btn" id="playBtn" aria-label="Play/Pause">▶</button>
+        <div class="progress-bar" id="progressBar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
+      <div class="source-row">
+        <button class="btn primary" id="systemAudioBtn">System Audio</button>
+        <button class="btn subtle" id="uploadBtn">Datei laden</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mapping-panel" id="mappingPanel">
+  <div class="panel-group-label">Emotional State</div>
+  <div class="map-row"><span class="map-label">Valence</span><div class="map-bar-bg"><div class="map-bar warm" id="mValence"></div></div><span class="numeric-val" id="nValence">.50</span></div>
+  <div class="map-row"><span class="map-label">Arousal</span><div class="map-bar-bg"><div class="map-bar core" id="mArousal"></div></div><span class="numeric-val" id="nArousal">.00</span></div>
+  <div class="map-row"><span class="map-label">Tension</span><div class="map-bar-bg"><div class="map-bar tense" id="mTension"></div></div><span class="numeric-val" id="nTension">.00</span></div>
+
+  <div class="panel-group-label">Dynamics</div>
+  <div class="map-row"><span class="map-label">Pulse</span><div class="map-bar-bg"><div class="map-bar pulse" id="mPulse"></div></div><span class="numeric-val" id="nPulse">.00</span></div>
+  <div class="map-row"><span class="map-label">Event</span><div class="map-bar-bg"><div class="map-bar tense" id="mEvent"></div></div><span class="numeric-val" id="nEvent">.00</span></div>
+  <div class="map-row"><span class="map-label">Micro</span><div class="map-bar-bg"><div class="map-bar semantic" id="mMicro"></div></div><span class="numeric-val" id="nMicro">.00</span></div>
+  <div class="map-row"><span class="map-label">Macro</span><div class="map-bar-bg"><div class="map-bar novelty" id="mMacro"></div></div><span class="numeric-val" id="nMacro">.00</span></div>
+  <div class="map-row"><span class="map-label">Warm/Cool</span><div class="map-bar-bg"><div class="map-bar balance" id="mWarmCool"></div></div><span class="numeric-val" id="nWarmCool">.50</span></div>
+
+  <div class="panel-group-label">Motion</div>
+  <div class="map-row"><span class="map-label">Flow</span><div class="map-bar-bg"><div class="map-bar stable" id="mFlow"></div></div><span class="numeric-val" id="nFlow">.00</span></div>
+  <div class="map-row"><span class="map-label">Groove</span><div class="map-bar-bg"><div class="map-bar pulse" id="mGroove"></div></div><span class="numeric-val" id="nGroove">.00</span></div>
+  <div class="map-row"><span class="map-label">Drive</span><div class="map-bar-bg"><div class="map-bar novelty" id="mDrive"></div></div><span class="numeric-val" id="nDrive">.00</span></div>
+  <div class="map-row"><span class="map-label">Burst</span><div class="map-bar-bg"><div class="map-bar tense" id="mBurst"></div></div><span class="numeric-val" id="nBurst">.00</span></div>
+  <div class="map-row"><span class="map-label">Lead</span><div class="map-bar-bg"><div class="map-bar modelean" id="mLead"></div></div><span class="numeric-val lead-val" id="nLead">—</span></div>
+
+  <div class="panel-group-label">Semantic Probe</div>
+  <div class="map-row"><span class="map-label">Loudness</span><div class="map-bar-bg"><div class="map-bar core" id="mLoudness"></div></div><span class="numeric-val" id="nLoudness">.00</span></div>
+  <div class="map-row"><span class="map-label">Brightness</span><div class="map-bar-bg"><div class="map-bar semantic" id="mBrightness"></div></div><span class="numeric-val" id="nBrightness">.00</span></div>
+  <div class="map-row"><span class="map-label">Flatness</span><div class="map-bar-bg"><div class="map-bar noise" id="mFlatness"></div></div><span class="numeric-val" id="nFlatness">.00</span></div>
+  <div class="map-row"><span class="map-label">Density</span><div class="map-bar-bg"><div class="map-bar pulse" id="mDensity"></div></div><span class="numeric-val" id="nDensity">.00</span></div>
+  <div class="map-row"><span class="map-label">Novelty</span><div class="map-bar-bg"><div class="map-bar novelty" id="mNovelty"></div></div><span class="numeric-val" id="nNovelty">.00</span></div>
+  <div class="map-row"><span class="map-label">Stability</span><div class="map-bar-bg"><div class="map-bar stable" id="mStability"></div></div><span class="numeric-val" id="nStability">1.00</span></div>
+  <div class="map-row"><span class="map-label">Rhythm</span><div class="map-bar-bg"><div class="map-bar pulse" id="mRhythm"></div></div><span class="numeric-val" id="nRhythm">.00</span></div>
+  <div class="map-row"><span class="map-label">Bass Entry</span><div class="map-bar-bg"><div class="map-bar warm" id="mBassEntry"></div></div><span class="numeric-val" id="nBassEntry">.00</span></div>
+  <div class="map-row"><span class="map-label">Tonal Conf</span><div class="map-bar-bg"><div class="map-bar stable" id="mTonalConf"></div></div><span class="numeric-val" id="nTonalConf">.00</span></div>
+  <div class="map-row"><span class="map-label">Major Lean</span><div class="map-bar-bg"><div class="map-bar modelean" id="mMajorLean"></div></div><span class="numeric-val" id="nMajorLean">.50</span></div>
+
+  <div class="panel-group-label">Spectral Sources</div>
+  <div class="map-row"><span class="map-label">Sub-Bass</span><div class="map-bar-bg"><div class="map-bar b0" id="mBand0"></div></div><span class="numeric-val" id="nBand0">.00</span></div>
+  <div class="map-row"><span class="map-label">Bass</span><div class="map-bar-bg"><div class="map-bar b1" id="mBand1"></div></div><span class="numeric-val" id="nBand1">.00</span></div>
+  <div class="map-row"><span class="map-label">Mid</span><div class="map-bar-bg"><div class="map-bar b2" id="mBand2"></div></div><span class="numeric-val" id="nBand2">.00</span></div>
+  <div class="map-row"><span class="map-label">High-Mid</span><div class="map-bar-bg"><div class="map-bar b3" id="mBand3"></div></div><span class="numeric-val" id="nBand3">.00</span></div>
+  <div class="map-row"><span class="map-label">Treble</span><div class="map-bar-bg"><div class="map-bar b4" id="mBand4"></div></div><span class="numeric-val" id="nBand4">.00</span></div>
+</div>
+
+<div class="fps" id="fps"></div>
+<div class="hint" id="hint">M · Panel · T · Mode · P · Palette · · · Interference v6 Semantic Interference</div>
+
+<script>
+/* ================================================================
+ *  FREQUENCY — INTERFERENCE v6 SEMANTIC INTERFERENCE
+ *
+ *  Rebuilds timbre events into something metaphorically honest and
+ *  visually smooth. v5.3/5.4 proved events fire at the right moments
+ *  (Rock Your Body filter-open, Runaway piano intro, HBFS drops) —
+ *  the problem was that their VISUAL RESPONSE was choppy.
+ *
+ *  ----------------------------------------------------------------
+ *  THE DIAGNOSIS
+ *
+ *  eventFlash snaps from 0 to 1.0 in a single frame when an event
+ *  fires. In v5.3/5.4 this value was applied directly to:
+ *    (a) source position spread (eventSpread in updateSources)
+ *    (b) boundary sharpness
+ *    (c) global brightness
+ *  Each of those is a discontinuity. Combined they produce what
+ *  Michael described as "versetzte Sprünge", choppy and glitchy —
+ *  exactly what breaks flow in a continuous wave visual.
+ *
+ *  ----------------------------------------------------------------
+ *  THE FIX — THE SIXTH SOURCE
+ *
+ *  Michael's own suggestion: treat events as a ripple — a sixth
+ *  wave source that briefly emerges and propagates outward. This
+ *  is the only approach that is metaphorically honest to Frequency's
+ *  core (we are an interference visualizer; events should BE waves,
+ *  not jolts to other parameters).
+ *
+ *  Implementation:
+ *    - N_SRC raised from 5 to 6
+ *    - Source 5 (the sixth, zero-indexed) sits at canvas center
+ *    - Its amplitude is smoothed eventFlash (slow attack ~100ms,
+ *      slow release ~700ms) — no positional glitches, no brightness
+ *      pops, the ripple rises gradually and decays naturally
+ *    - Its color is palette-specific (amber-gold in Blorange, silver
+ *      in Aurora) so events feel palette-consistent
+ *    - Warm/cool weights are balanced (0.5/0.5) so the ripple
+ *      contributes equally to both classifier sides and doesn't
+ *      bias the region boundary
+ *
+ *  When an event fires: a wave emanates from the center, interferes
+ *  with the five main sources' wave patterns, adds a brief palette-
+ *  colored brightening along its propagation path, and dies out as
+ *  the eventAmpSmoothed decays. This is indistinguishable from a
+ *  real wave event in a physical interference field.
+ *
+ *  Because the ripple uses the same u_waveNum and u_flowSpeed as
+ *  the other sources, it visually harmonizes with the main pattern
+ *  instead of looking like an overlay.
+ *
+ *  ----------------------------------------------------------------
+ *  OTHER EVENT CHANGES
+ *
+ *  ALL non-ripple event parameter bumps removed or tamed:
+ *    - eventSpread on source positions:  REMOVED
+ *    - eventFlash on brightness:         REMOVED
+ *    - eventFlash on boundarySharp:      REMOVED
+ *    - eventFlash on flowSpeed:          5.0 → 3.0 (kept; smooth
+ *      because flow integrates through phase)
+ *
+ *  ----------------------------------------------------------------
+ *  THRESHOLDS RAISED (slightly)
+ *
+ *  v5.4's thresholds were tuned to make events fire at all; they
+ *  overshot into "fires on nearly every percussion hit in HBFS".
+ *  v5.5 nudges them back up for a better signal-to-noise balance:
+ *
+ *    TREBLE_SPIKE_RATIO:  1.75 → 2.0
+ *    HIGHMID_SPIKE_RATIO: 1.65 → 1.85
+ *    TREBLE_FLOOR:        0.11 → 0.13
+ *    HIGHMID_FLOOR:       0.13 → 0.15
+ *    WIDENING_STEP:       1.0  → 1.3
+ *
+ *  Rock Your Body at 3:20 should still fire. HBFS should fire only
+ *  at genuine section changes, not on every percussive hit.
+ * ================================================================ */
+
+const BOOT_DURATION_MS = 3000;
+const N_SRC            = 6;   // v5.5: 5 spectral bands + 1 event ripple source
+
+/* ================================================================
+ *  MODE STATE
+ * ================================================================ */
+const MODE_FOCUS   = 0;
+const MODE_AMBIENT = 1;
+let currentMode = MODE_FOCUS;
+let modeMix     = 0;
+const MODE_TRANSITION_RATE = 0.018;
+
+/* ================================================================
+ *  PALETTE STATE
+ *
+ *  currentPalette is a string key. Actual color data lives in
+ *  PALETTES below. getCurrentBandColor(i) returns the active
+ *  palette's color for band i; uniform push uses this instead of
+ *  hardcoded BAND_COLORS.
+ * ================================================================ */
+let currentPalette = 'blorange';
+
+/* ================================================================
+ *  HARMONIC DRIFT STATE (Ambient mode meta-modulation)
+ *
+ *  Two incommensurate sine frequencies so the drift doesn't return
+ *  to the same value on a strict period. Amplitude 0.3 corresponds
+ *  to roughly a 3:2 / 2:3 area-ratio swing.
+ *
+ *  Primary period ~92s, secondary ~58s → effective beat pattern
+ *  of several minutes before recognizable recurrence.
+ * ================================================================ */
+const HARMONIC_PRIMARY_PERIOD   = 92.0;   // seconds
+const HARMONIC_SECONDARY_PERIOD = 58.0;   // seconds
+const HARMONIC_PRIMARY_AMP      = 0.22;
+const HARMONIC_SECONDARY_AMP    = 0.09;
+
+/* ---------- WebGL ---------- */
+const canvas = document.getElementById('c');
+const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+if (!gl) {
+  document.body.innerHTML = '<div style="padding:40px;font-family:Outfit,sans-serif;color:#fff">WebGL wird von deinem Browser nicht unterstützt.</div>';
+}
+
+const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+let resU;
+function resize() {
+  const dpr = isMobile ? 1 : Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width  = Math.floor(window.innerWidth  * dpr);
+  canvas.height = Math.floor(window.innerHeight * dpr);
+  if (gl) gl.viewport(0, 0, canvas.width, canvas.height);
+  if (resU) gl.uniform2f(resU, canvas.width, canvas.height);
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 150));
+
+const VERT = `attribute vec2 a_pos; void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }`;
+
+/* ================================================================
+ *  FRAGMENT SHADER — v5.1
+ *
+ *  v5.0 core preserved (dual-field interference, sigmoid region,
+ *  selective saturation). v5.1 additions:
+ *   - u_ambientBias: harmonic-drift term added to Ambient classifier
+ *   - Edge highlight dimmed in Ambient + gated by total intensity
+ *     (fixes the idle washout and the white-glow-everywhere issue)
+ * ================================================================ */
+const FRAG = `
+precision highp float;
+
+uniform vec2  u_resolution;
+uniform float u_time;
+uniform vec2  u_srcPos[${N_SRC}];
+uniform float u_srcAmp[${N_SRC}];
+uniform vec3  u_srcColor[${N_SRC}];
+uniform float u_srcWarmW[${N_SRC}];
+uniform float u_srcCoolW[${N_SRC}];
+uniform float u_waveNum;
+uniform float u_flowSpeed;
+uniform float u_boundarySharp;
+uniform float u_coolBoost;
+uniform float u_modeMix;             // 0=Focus, 1=Ambient
+uniform float u_ambientBias;         // v5.1: harmonic drift term
+uniform vec3  u_warmBloom;           // v5.3: palette-aware warm peak color
+uniform vec3  u_coolBloom;           // v5.3: palette-aware cool peak color
+uniform float u_valence;
+uniform float u_arousal;
+uniform float u_tension;
+uniform float u_brightness;
+uniform float u_pulse;
+uniform float u_microPower;          // v5.6e: small transient nudges
+uniform float u_macroPower;          // v5.6e: structural field reorganization
+uniform float u_macroAge;            // seconds since last macro event
+uniform float u_eventPolarity;       // -1=cool counter-wave, +1=warm counter-wave
+uniform float u_bootK;
+uniform float u_jitterPhase;
+
+/* Selective saturation boost.
+ * Takes a color and boosts its distance from its own mean (gray
+ * component) proportional to how saturated it already is.
+ * Neutral grays stay neutral. Saturated colors get punchier.
+ * This replaces v4.1's grayscale-luminance mix, which tinted
+ * all grays warm due to luminance-weight asymmetry. */
+vec3 selectiveSaturate(vec3 c, float amount) {
+  float mx = max(c.r, max(c.g, c.b));
+  float mn = min(c.r, min(c.g, c.b));
+  float chroma = mx - mn;            // 0 for gray, high for saturated
+  float gate = smoothstep(0.04, 0.20, chroma);
+  float meanC = (c.r + c.g + c.b) / 3.0;
+  return mix(c, vec3(meanC) + (c - vec3(meanC)) * (1.0 + amount), gate);
+}
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+  float aspect = u_resolution.x / u_resolution.y;
+  vec2 p = uv;
+  if (aspect > 1.0) p.x = (uv.x - 0.5) * aspect + 0.5;
+  else              p.y = (uv.y - 0.5) / aspect + 0.5;
+
+  vec2 warp = vec2(
+    sin(p.y * 14.0 + u_jitterPhase * 2.4),
+    cos(p.x * 14.0 - u_jitterPhase * 2.1)
+  ) * u_tension * 0.008;
+  vec2 pw = p + warp;
+
+  /* v5.6e: Seamless Pressure.
+   * Events no longer use atan-based angular wobble, which created
+   * visible seams through the center. Micro events add fine, seamless
+   * texture pressure; macro events act as a broad pressure/suction
+   * deformation that reorganizes the field without choppy vibration. */
+  vec2 fromCenter = p - vec2(0.5);
+  float centerD = length(fromCenter) + 0.001;
+  vec2 radialDir = fromCenter / centerD;
+
+  float macroRise = smoothstep(0.00, 0.18, u_macroAge);
+  float macroTail = 1.0 - smoothstep(0.85, 1.65, u_macroAge);
+  float macroEnv = macroRise * macroTail;
+  float corePressure = exp(-centerD * centerD * 4.8);
+  float softRadius = 0.18 + u_macroAge * 0.20;
+  float softRing = exp(-pow(centerD - softRadius, 2.0) * 10.0);
+  float pressure = (corePressure * 0.72 - softRing * 0.28) * macroEnv;
+
+  vec2 slowDrift = vec2(
+    sin(p.y * 7.5 + u_time * 0.16) + 0.45 * sin((p.x + p.y) * 5.0 - u_time * 0.11),
+    cos(p.x * 7.0 - u_time * 0.14) - 0.45 * sin((p.x - p.y) * 5.7 + u_time * 0.10)
+  );
+  vec2 microTexture = vec2(
+    sin(p.y * 36.0 + u_time * 1.55) + 0.45 * sin((p.x + p.y) * 26.0 - u_time * 1.05),
+    cos(p.x * 33.0 - u_time * 1.40) + 0.45 * cos((p.x - p.y) * 29.0 + u_time * 1.10)
+  );
+
+  pw += radialDir * (u_macroPower * 0.018 * pressure);
+  pw += slowDrift * (u_macroPower * 0.0038 * macroEnv);
+  pw += microTexture * (u_microPower * 0.0032 * exp(-centerD * centerD * 1.8));
+
+  /* Dual-field interference accumulation */
+  float warmReal = 0.0, warmImag = 0.0;
+  float coolReal = 0.0, coolImag = 0.0;
+  vec3  warmColAccum = vec3(0.0);
+  vec3  coolColAccum = vec3(0.0);
+  float warmColWeight = 0.0;
+  float coolColWeight = 0.0;
+
+  for (int i = 0; i < ${N_SRC}; i++) {
+    float amp = u_srcAmp[i];
+    if (amp < 0.008) continue;
+
+    vec2 s = u_srcPos[i];
+    vec2 dv = pw - s;
+    float d = length(dv);
+    float angle = atan(dv.y, dv.x);
+
+    /* v5.6e: event source is no longer a flash source.
+     * It acts like a soft additional oscillator. Micro events only
+     * wrinkle phase; macro events gently reorganize interference. */
+    float isEvent = (i == 5) ? 1.0 : 0.0;
+    float falloff = amp / mix(0.40 + d * 3.0, 0.30 + d * 2.25, isEvent);
+    float petalCount = 3.0 + float(i);
+    float angModMain  = 0.06  * sin(angle * petalCount + u_time * 0.3);
+    float angModEvent = 0.028 * sin(angle * 7.0 - u_time * 0.42);
+    float angMod = mix(angModMain, angModEvent, isEvent);
+
+    float macroFrontRadius = clamp(0.10 + u_macroAge * 0.24, 0.0, 0.78);
+    float macroFrontDelta = d - macroFrontRadius;
+    float macroFront = exp(-(macroFrontDelta * macroFrontDelta) * 22.0)
+                     * u_macroPower * isEvent;
+    falloff *= 1.0 + macroFront * 0.025;
+
+    float waveN = mix(u_waveNum, u_waveNum * (1.0 + u_macroPower * 0.035 + u_microPower * 0.025), isEvent);
+    float flowN = mix(u_flowSpeed, u_flowSpeed * (1.0 + u_macroPower * 0.018), isEvent);
+    float eventPhaseWobble = isEvent * (
+      u_microPower * 0.22 * sin(dv.x * 13.0 + dv.y * 7.0 + u_time * 0.90)
+      + u_macroPower * 0.18 * macroFront
+    );
+    float phase = waveN * d - u_time * flowN
+                + angMod + eventPhaseWobble + float(i) * 0.83;
+
+    float re = falloff * cos(phase);
+    float im = falloff * sin(phase);
+    float pw2 = falloff * falloff;
+
+    float wW = u_srcWarmW[i];
+    float cW = u_srcCoolW[i] * u_coolBoost;   // perceptual boost
+
+    warmReal += re * wW;
+    warmImag += im * wW;
+    warmColAccum  += u_srcColor[i] * pw2 * wW;
+    warmColWeight += pw2 * wW;
+
+    coolReal += re * cW;
+    coolImag += im * cW;
+    coolColAccum  += u_srcColor[i] * pw2 * cW;
+    coolColWeight += pw2 * cW;
+  }
+
+  float warmI = warmReal * warmReal + warmImag * warmImag;
+  float coolI = coolReal * coolReal + coolImag * coolImag;
+
+  /* Mode-aware classifier — v5.1.
+   *
+   * FOCUS mode (modeMix=0): raw intensity difference. When bass-heavy
+   * bands are loud, warmI >> coolI and the image goes warm. Honest.
+   *
+   * AMBIENT mode (modeMix=1): each team's intensity is normalized
+   * against its own accumulated weight budget, then offset by a
+   * slow harmonic-drift bias. Balance is no longer rigidly 50/50 —
+   * it drifts through harmonic ratios (4:3, 3:2, etc.) over ~90s.
+   *
+   * The bias is ZERO in Focus (we scale it by modeMix). This way
+   * Focus never receives an artificial lean, only the music's truth. */
+  float warmBudget  = warmColWeight + 0.001;
+  float coolBudget  = coolColWeight + 0.001;
+  float diffFocus   = warmI - coolI;
+  float diffAmbient = warmI / warmBudget - coolI / coolBudget + u_ambientBias;
+  float diff = mix(diffFocus, diffAmbient, u_modeMix);
+  float region = 1.0 / (1.0 + exp(-diff * u_boundarySharp));
+
+  vec3 warmCol = warmColAccum / max(warmColWeight, 0.002);
+  vec3 coolCol = coolColAccum / max(coolColWeight, 0.002);
+  vec3 regionColor = mix(coolCol, warmCol, region);
+
+  /* Brightness envelope — never black */
+  float totalI = warmI + coolI;
+  float normI = totalI / (warmColWeight + coolColWeight + 0.25) * 0.5;
+  normI = clamp(normI, 0.0, 1.3);
+  float envelope = 0.48 + 0.52 * smoothstep(0.0, 0.7, normI);
+
+  vec3 col = regionColor * envelope;
+
+  /* Edge highlight at boundary — v5.2: disabled entirely in Ambient.
+   *
+   * The edge math (exp-falloff around region=0.5) works in Focus where
+   * the classifier produces sharp dominance (region firmly at 0 or 1).
+   * In Ambient the normalized classifier makes region hover around 0.5
+   * across broad areas, so any tiny note-level intensity change causes
+   * the edge to flicker across those areas — it picks up noise rather
+   * than real boundaries. No amount of scaling or gating fixes the
+   * mechanic mismatch, so we simply turn the edge off in Ambient.
+   *
+   * Focus keeps its full gold-edge signature. During mode transitions
+   * the contribution scales smoothly through the morph. */
+  float edgeDist = abs(region - 0.5);
+  float edge = exp(-edgeDist * edgeDist * 220.0);
+  float edgeGate = smoothstep(0.02, 0.18, normI);
+  float edgeModeScale = (1.0 - u_modeMix) * (1.0 - u_macroPower * 0.22);   // soften event seams in Focus
+  vec3 edgeColor = vec3(1.15, 0.95, 0.62);
+  col += edgeColor * edge * 0.22 * (0.7 + u_brightness * 0.6) * edgeGate * edgeModeScale;
+
+  /* Hot peak bloom — v5.2: halved in Ambient.
+   *
+   * In Focus, high-intensity peaks are spatially concentrated (real
+   * interference antinodes), so the bloom adds nice isolated glow.
+   * In Ambient's normalized field, high normI spreads over large
+   * areas and the bloom becomes a broad brightness lift — contributing
+   * to the "Whiblorange" washout in peak moments. 50% in Ambient. */
+  float hotPeak = smoothstep(0.70, 1.05, normI);
+  float hotPeakScale = 1.0 - u_modeMix * 0.5;
+  col += regionColor * hotPeak * 0.20 * hotPeakScale;
+
+  /* Palette-aware peak bloom — v5.4, Ambient-only, toned down.
+   *
+   * v5.3 multipliers (0.28 / 0.22) combined with HDR bloom colors
+   * produced blinding gold in Blorange Ambient peaks. v5.4 halves
+   * the multipliers and uses sub-HDR bloom colors per palette. The
+   * result is a subtle warmth/coolness hint at peaks, not a
+   * luminance overlay. */
+  float warmDominance = smoothstep(0.55, 0.92, region);
+  float coolDominance = smoothstep(0.55, 0.92, 1.0 - region);
+  col += u_warmBloom * warmDominance * u_modeMix * normI * 0.14;
+  col += u_coolBloom * coolDominance * u_modeMix * normI * 0.11;
+
+  /* v5.6e: no more shock-front flash.
+   * Events are expressed through field topology above. Keep only the
+   * normal pulse lift so peaks stay physical rather than blinding. */
+  col *= 1.0 + u_pulse * 0.14;
+
+  /* Global brightness */
+  col *= 0.70 + u_brightness * 0.55;
+
+  /* SELECTIVE vibrancy — the real fix.
+   * ~20% chroma boost but only where color already exists.
+   * Kills the v4.1 brown-cast on transition zones. */
+  col = selectiveSaturate(col, 0.22);
+
+  /* Boot reveal */
+  float dc = length(uv - 0.5);
+  float reveal = smoothstep(0.95, 0.0, dc - u_bootK * 1.2);
+  col *= reveal * u_bootK;
+
+  /* Vignette */
+  float vig = 1.0 - smoothstep(0.55, 1.0, dc);
+  col *= 0.86 + vig * 0.14;
+
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+let program;
+let timeU, resolU, waveU, flowU, sharpU, coolBoostU, modeMixU, ambientBiasU;
+let valenceU, arousalU, tensionU, brightU, bootU, jitterU, pulseU;
+let microPowerU, macroPowerU, macroAgeU, eventPolarityU;
+let warmBloomU, coolBloomU;
+let srcPosU = [], srcAmpU = [], srcColorU = [], srcWarmWU = [], srcCoolWU = [];
+
+function setupGL() {
+  const vs = gl.createShader(gl.VERTEX_SHADER);
+  gl.shaderSource(vs, VERT); gl.compileShader(vs);
+  if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) console.error('VS:', gl.getShaderInfoLog(vs));
+
+  const fs = gl.createShader(gl.FRAGMENT_SHADER);
+  gl.shaderSource(fs, FRAG); gl.compileShader(fs);
+  if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) console.error('FS:', gl.getShaderInfoLog(fs));
+
+  program = gl.createProgram();
+  gl.attachShader(program, vs); gl.attachShader(program, fs);
+  gl.linkProgram(program); gl.useProgram(program);
+
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+  const pos = gl.getAttribLocation(program, 'a_pos');
+  gl.enableVertexAttribArray(pos);
+  gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+
+  resU       = gl.getUniformLocation(program, 'u_resolution');
+  timeU      = gl.getUniformLocation(program, 'u_time');
+  waveU      = gl.getUniformLocation(program, 'u_waveNum');
+  flowU      = gl.getUniformLocation(program, 'u_flowSpeed');
+  sharpU     = gl.getUniformLocation(program, 'u_boundarySharp');
+  coolBoostU = gl.getUniformLocation(program, 'u_coolBoost');
+  modeMixU   = gl.getUniformLocation(program, 'u_modeMix');
+  ambientBiasU = gl.getUniformLocation(program, 'u_ambientBias');
+  warmBloomU = gl.getUniformLocation(program, 'u_warmBloom');
+  coolBloomU = gl.getUniformLocation(program, 'u_coolBloom');
+  valenceU   = gl.getUniformLocation(program, 'u_valence');
+  arousalU   = gl.getUniformLocation(program, 'u_arousal');
+  tensionU   = gl.getUniformLocation(program, 'u_tension');
+  brightU    = gl.getUniformLocation(program, 'u_brightness');
+  bootU      = gl.getUniformLocation(program, 'u_bootK');
+  jitterU    = gl.getUniformLocation(program, 'u_jitterPhase');
+  pulseU     = gl.getUniformLocation(program, 'u_pulse');
+  microPowerU = gl.getUniformLocation(program, 'u_microPower');
+  macroPowerU = gl.getUniformLocation(program, 'u_macroPower');
+  macroAgeU   = gl.getUniformLocation(program, 'u_macroAge');
+  eventPolarityU = gl.getUniformLocation(program, 'u_eventPolarity');
+
+  for (let i = 0; i < N_SRC; i++) {
+    srcPosU.push(gl.getUniformLocation(program, `u_srcPos[${i}]`));
+    srcAmpU.push(gl.getUniformLocation(program, `u_srcAmp[${i}]`));
+    srcColorU.push(gl.getUniformLocation(program, `u_srcColor[${i}]`));
+    srcWarmWU.push(gl.getUniformLocation(program, `u_srcWarmW[${i}]`));
+    srcCoolWU.push(gl.getUniformLocation(program, `u_srcCoolW[${i}]`));
+  }
+
+  gl.uniform2f(resU, canvas.width, canvas.height);
+}
+if (gl) { setupGL(); resize(); }
+
+/* ================================================================
+ *  PER-BAND DEFINITIONS — CLEANER BLORANGE PALETTE
+ *
+ *  Key moves:
+ *  - Bass shifted from amber-gold (earthy) to cleaner orange
+ *  - Mid shifted from warm pearl to cool neutral (pale lavender)
+ *    so warm+cool mixes produce a clean transitional color,
+ *    not beige. This directly addresses the "sandy brown idle".
+ *  - Highmid and treble pushed slightly more vivid.
+ * ================================================================ */
+
+const BAND_RANGES = [
+  [20, 80],
+  [80, 250],
+  [250, 1500],
+  [1500, 5000],
+  [5000, 14000]
+];
+
+/* ================================================================
+ *  PALETTE SYSTEM — v5.4
+ *
+ *  Each palette has its own identity plus calibrated peak-bloom
+ *  colors for Ambient (all sub-HDR in v5.4 after the "too-bright"
+ *  feedback on v5.3).
+ *
+ *  BLORANGE — "Life & Vibrancy"
+ *    Sunset + ocean. Saturated red-orange warm; cyan/violet cool.
+ *    Warm bloom = amber-gold (tonal, not incandescent).
+ *    Cool bloom = deep cyan.
+ *
+ *  AURORA — "Polarlicht über Sternenhimmel"
+ *    Violet-magenta on the warm side (the emotional foreground you
+ *    feel on a bass drop). Aurora green on high-mid, galactic deep
+ *    indigo on treble for the cool side. Mid is dusky violet-gray
+ *    so the overall feel stays in "Nocturne spirit" — eye-friendly
+ *    for dark rooms, less alarm-triggering than Blorange.
+ *
+ *    Treble is deliberately dark: when it fires (rarely, in most
+ *    music), it adds cosmic depth rather than brightness. This is
+ *    why the high-mid becomes the brighter cool color — that's
+ *    where the aurora-green lives.
+ * ================================================================ */
+const PALETTES = {
+  blorange: {
+    displayName: 'Blorange',
+    colors: [
+      [1.28, 0.35, 0.18],   // sub-bass: saturated red-orange
+      [1.30, 0.62, 0.18],   // bass: clean orange
+      [0.88, 0.92, 1.08],   // mid: cool pale lavender
+      [0.25, 0.78, 1.22],   // high-mid: vivid cyan-blue
+      [0.55, 0.40, 1.28]    // treble: saturated blue-violet
+    ],
+    warmBloom: [0.85, 0.55, 0.15],   // amber-gold (sub-HDR, v5.4)
+    coolBloom: [0.20, 0.60, 0.95],   // deep cyan (sub-HDR, v5.4)
+    eventColor: [0.78, 0.70, 0.58]   // v5.6e: muted sand; no gold flash
+  },
+  aurora: {
+    displayName: 'Aurora',
+    colors: [
+      [0.52, 0.22, 0.78],   // sub-bass: deep royal violet
+      [0.88, 0.38, 0.98],   // bass: luminous magenta
+      [0.38, 0.32, 0.52],   // mid: dusky violet-gray (not silver)
+      [0.25, 0.88, 0.50],   // high-mid: aurora green
+      [0.22, 0.18, 0.55]    // treble: galactic deep indigo (dark)
+    ],
+    warmBloom: [0.85, 0.35, 1.00],   // saturated magenta peak
+    coolBloom: [0.30, 0.95, 0.50],   // saturated emerald peak
+    eventColor: [0.46, 0.42, 0.58]   // v5.6e: muted violet-gray; no silver flash
+  }
+};
+
+function getCurrentBandColor(i) {
+  if (i === 5) return PALETTES[currentPalette].eventColor;
+  return PALETTES[currentPalette].colors[i];
+}
+
+const BAND_WARM_WEIGHTS = [1.0, 1.0, 0.3, 0.0, 0.0];   // mid leans cool (Focus)
+const BAND_COOL_WEIGHTS = [0.0, 0.0, 0.7, 1.0, 1.0];
+
+const BASE_HOMES = [
+  { x: 0.50, y: 0.13 },
+  { x: 0.32, y: 0.35 },
+  { x: 0.68, y: 0.50 },
+  { x: 0.30, y: 0.66 },
+  { x: 0.50, y: 0.87 },
+  { x: 0.50, y: 0.50 }   // v5.5: 6th source = event ripple, stays at center
+];
+
+const srcOrbitPhase = [];
+const srcOrbitRadius = [];
+const srcOrbitSpeed = [];
+const srcHomes = [];
+const srcCurrentAmp = [];
+const srcCurrentPos = [];
+const srcTargetPos = [];
+
+/* v6 Semantic Interference state.
+ * This is the curated Interference milestone: spectral analysis feeds
+ * a semantic layer, the semantic layer feeds adaptive choreography,
+ * and the renderer keeps the warm/cool interference identity. Motion
+ * lead is now dramaturgic rather than a simple max-value contest. */
+let globalRotAngle = 0.0;
+let rotSpeedSmooth = 0.010;
+let flowDriveSmooth = 0.0;
+let grooveDriveSmooth = 0.0;
+let driveDriveSmooth = 0.0;
+let burstDriveSmooth = 0.0;
+let burstHoldSmooth = 0.0;
+let danceDriveSmooth = 0.0;
+let flowAuthoritySmooth = 0.0;
+let grooveAuthoritySmooth = 0.0;
+let driveAuthoritySmooth = 0.0;
+let burstAuthoritySmooth = 0.0;
+let macroTorque = 0.0;
+let motionLead = 'FLOW';
+let motionLeadValue = 0.0;
+
+for (let i = 0; i < N_SRC; i++) {
+  srcOrbitPhase.push(Math.random() * Math.PI * 2);
+  srcOrbitRadius.push(0.025 + i * 0.007);
+  srcOrbitSpeed.push(0.18 + i * 0.085);
+  srcHomes.push({ x: 0.5, y: 0.5 });
+  srcCurrentAmp.push(0);
+  srcCurrentPos.push({ x: 0.5, y: 0.5 });
+  srcTargetPos.push({ x: 0.5, y: 0.5 });
+}
+
+function followNoBounce(i, targetX, targetY, dt, rate) {
+  srcTargetPos[i].x = targetX;
+  srcTargetPos[i].y = targetY;
+  const a = 1.0 - Math.exp(-Math.max(0.1, rate) * dt);
+  srcCurrentPos[i].x += (targetX - srcCurrentPos[i].x) * a;
+  srcCurrentPos[i].y += (targetY - srcCurrentPos[i].y) * a;
+}
+
+/* ================================================================
+ *  PERCEPTUAL COOL BOOST  —  now mode-aware
+ *
+ *  In gut-gemasterter Musik dominieren niedrige Frequenzen in
+ *  der Amplitude. Bass/Sub-Bass sitzt oft bei 0.8-0.95 während
+ *  Treble bei 0.3-0.5 liegt. Eine naive Balance würde immer
+ *  warm klassifizieren. Das Ohr hört aber Hochfrequenz-Energie
+ *  prominenter als das FFT suggeriert (A-weighting prinzip).
+ *
+ *  FOCUS mode:   COOL_BOOST = 2.2  (perceptually corrected raw diff)
+ *  AMBIENT mode: COOL_BOOST = 1.0  (no boost needed — classifier
+ *                                   normalizes against weight budgets
+ *                                   internally, so boosting on top
+ *                                   would double-correct)
+ *
+ *  getCoolBoost() returns a smoothly lerped value during mode
+ *  transitions. The UI "Warm/Cool" bar always uses the Focus value
+ *  (2.2), since it reports raw audio content distribution regardless
+ *  of how the visual mode decides to render it.
+ * ================================================================ */
+const COOL_BOOST_FOCUS   = 2.2;
+const COOL_BOOST_AMBIENT = 1.0;
+const COOL_BOOST_UI      = 2.2;   // bar readout is mode-independent
+
+function getCoolBoost() {
+  const base = COOL_BOOST_FOCUS + modeMix * (COOL_BOOST_AMBIENT - COOL_BOOST_FOCUS);
+  if (!isPlaying) return base;
+  /* v5.8: brightness/flatness provide a gentle semantic cool-air bias.
+   * This is deliberately small — it should change temperature, not the
+   * entire identity. */
+  const brightBias = (semantic.brightness - 0.5) * (0.34 - modeMix * 0.18);
+  const noiseAir = semantic.flatness * (0.10 - modeMix * 0.04);
+  return Math.max(0.75, Math.min(2.55, base + brightBias + noiseAir));
+}
+
+/* Mid-band shares differently between modes. Focus leans Mid cool
+ * (0.3 warm / 0.7 cool) so the neutral/idle color isn't beige.
+ * Ambient splits Mid evenly (0.5 / 0.5) since the normalized
+ * classifier doesn't need the anti-beige bias.
+ *
+ * v5.6 change: the event ripple is no longer classifier-neutral.
+ * A neutral 0.5/0.5 source adds energy, but barely moves the
+ * warm/cool boundary — exactly why v5.5 events felt too polite.
+ * The event now becomes a counter-wave: if the current musical field
+ * leans warm, the event cuts cool; if it leans cool, it cuts warm.
+ * Focus receives stronger contrast than Ambient. */
+function getEventMainWeight() {
+  const macroBias = Math.min(1, macroSmoothed * 1.8);
+  return 0.50 + macroBias * (0.24 - modeMix * 0.04);
+}
+function getEventSideWeight() {
+  const macroBias = Math.min(1, macroSmoothed * 1.8);
+  return 0.42 - macroBias * (0.10 - modeMix * 0.025);
+}
+function getBandWarmWeight(i) {
+  if (i === 5) return (eventPolarity >= 0) ? getEventMainWeight() : getEventSideWeight();
+  if (i === 2) return 0.3 + modeMix * (0.5 - 0.3);
+  return BAND_WARM_WEIGHTS[i];
+}
+function getBandCoolWeight(i) {
+  if (i === 5) return (eventPolarity < 0) ? getEventMainWeight() : getEventSideWeight();
+  if (i === 2) return 0.7 + modeMix * (0.5 - 0.7);
+  return BAND_COOL_WEIGHTS[i];
+}
+
+/* ================================================================
+ *  AUDIO INFRASTRUCTURE
+ * ================================================================ */
+
+let audioCtx = null;
+let analyser = null;
+let currentSource = null;
+let audioElement = document.getElementById('audioEl');
+let mediaElSource = null;
+let captureStream = null;
+let sourceKind = null;
+let isPlaying = false;
+let freqData = null;
+let prevFreqData = null;
+
+async function ensureAudioContext() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.25;
+    freqData = new Uint8Array(analyser.frequencyBinCount);
+    prevFreqData = new Uint8Array(analyser.frequencyBinCount);
+  }
+  if (audioCtx.state === 'suspended') await audioCtx.resume();
+}
+
+function disconnectCurrentSource() {
+  if (currentSource) { try { currentSource.disconnect(); } catch (e) {} currentSource = null; }
+  if (captureStream) { captureStream.getTracks().forEach(t => t.stop()); captureStream = null; }
+  if (audioElement && !audioElement.paused) audioElement.pause();
+}
+
+function getMediaElSource() {
+  if (!mediaElSource) mediaElSource = audioCtx.createMediaElementSource(audioElement);
+  return mediaElSource;
+}
+
+async function playDemoOrFile(srcUrl, displayName, kind) {
+  await ensureAudioContext();
+  disconnectCurrentSource();
+  audioElement.removeAttribute('crossorigin');
+  audioElement.loop = (kind === 'demo');
+  audioElement.src = srcUrl;
+  audioElement.load();
+
+  const src = getMediaElSource();
+  src.connect(analyser);
+  src.connect(audioCtx.destination);
+  currentSource = src;
+
+  try {
+    await audioElement.play();
+    isPlaying = true;
+    sourceKind = kind;
+    setNowPlaying(displayName);
+    showPlaybackControls(true);
+    updatePlayButton();
+    showMappingPanel(true);
+  } catch (err) {
+    console.error('Playback failed:', err, audioElement.error);
+    setNowPlaying('Wiedergabe fehlgeschlagen — ' + (audioElement.error ? audioElement.error.message : err.message));
+  }
+}
+
+async function captureSystem() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+    setNowPlaying('System Capture nicht unterstützt');
+    return;
+  }
+  await ensureAudioContext();
+
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: 1 },
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+    });
+  } catch (err) {
+    if (err && err.name === 'NotAllowedError') setNowPlaying('Capture abgebrochen');
+    else { console.error(err); setNowPlaying('System Audio nicht verfügbar'); }
+    return;
+  }
+
+  const audioTracks = stream.getAudioTracks();
+  if (audioTracks.length === 0) {
+    setNowPlaying('Kein Audio im Stream — "Audio teilen" aktivieren');
+    stream.getTracks().forEach(t => t.stop());
+    return;
+  }
+
+  disconnectCurrentSource();
+  stream.getVideoTracks().forEach(t => t.stop());
+  const audioOnly = new MediaStream(audioTracks);
+  captureStream = audioOnly;
+  const src = audioCtx.createMediaStreamSource(audioOnly);
+  src.connect(analyser);
+  currentSource = src;
+
+  audioTracks[0].addEventListener('ended', () => {
+    if (sourceKind === 'system') {
+      disconnectCurrentSource();
+      isPlaying = false;
+      sourceKind = null;
+      setNowPlaying('System-Audio beendet');
+      showPlaybackControls(false);
+      showMappingPanel(false);
+    }
+  });
+
+  isPlaying = true;
+  sourceKind = 'system';
+  setNowPlaying('System Audio · live');
+  showPlaybackControls(false);
+  showMappingPanel(true);
+}
+
+/* ================================================================
+ *  AUDIO ANALYSIS
+ *
+ *  Same as v4.1 — but warm/cool balance readout now uses the
+ *  perceptually boosted cool weights so UI matches shader reality.
+ * ================================================================ */
+
+const perBand = [0, 0, 0, 0, 0];
+const perBandSmooth = [0, 0, 0, 0, 0];
+const bands = { bass: 0, lowMid: 0, mid: 0, treble: 0, energy: 0 };
+const bandSmooth = { bass: 0, lowMid: 0, mid: 0, treble: 0, energy: 0 };
+
+let fluxSmooth = 0;
+let fluxMean   = 0.05;
+let pulse      = 0;
+let balance    = 0.5;
+
+let frameCount     = 0;
+let lastOnsetFrame = -100;
+const onsetFrames  = [];
+const ONSET_WINDOW_FRAMES = 180;
+const REFRACTORY_FRAMES   = 6;
+const FLUX_FLOOR          = 0.05;
+const ADAPTIVE_FACTOR     = 2.2;
+
+let onsetsPerSec = 0;
+let onsetDensity = 0;
+
+let warmCoolBalance = 0.5;
+
+
+/* ================================================================
+ *  v5.8 SEMANTIC MAPPING STATE
+ *
+ *  These values are no longer panel-only diagnostics. They now drive
+ *  conservative renderer mappings: density changes source spread and
+ *  complexity, stability changes smoothness/form scale, brightness and
+ *  flatness bias coolness/texture, novelty drives macro pressure, and
+ *  rhythm controls pulse authority. This is intentionally an alpha: the
+ *  visual identity remains Interference, but the music gets more say.
+ * ================================================================ */
+const semantic = {
+  loudness: 0,
+  brightness: 0,
+  flatness: 0,
+  bandwidth: 0,
+  density: 0,
+  novelty: 0,
+  stability: 1,
+  rhythm: 0,
+  bassEntry: 0,
+  tonalConfidence: 0,
+  majorLean: 0.5
+};
+const semanticSlowVec = new Array(10).fill(0.0);
+const MAJOR_PROFILE = [6.35,2.23,3.48,2.33,4.38,4.09,2.52,5.19,2.39,3.66,2.29,2.88];
+const MINOR_PROFILE = [6.33,2.68,3.52,5.38,2.60,3.53,2.54,4.75,3.98,2.69,3.34,3.17];
+function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+function cosineSim(a, b, offset) {
+  let dot = 0, na = 0, nb = 0;
+  for (let i = 0; i < 12; i++) {
+    const av = a[(i + offset) % 12];
+    const bv = b[i];
+    dot += av * bv; na += av * av; nb += bv * bv;
+  }
+  return dot / (Math.sqrt(na * nb) + 1e-6);
+}
+
+function neutralizeSemanticForSilence(signalGate) {
+  const g = clamp01(signalGate);
+  semantic.loudness *= g;
+  semantic.brightness = 0.5 + (semantic.brightness - 0.5) * g;
+  semantic.flatness *= g;
+  semantic.bandwidth *= g;
+  semantic.density *= g;
+  semantic.novelty *= g;
+  semantic.rhythm *= g;
+  semantic.bassEntry *= g;
+  semantic.tonalConfidence *= g;
+  semantic.majorLean = 0.5 + (semantic.majorLean - 0.5) * g;
+  semantic.stability = 1.0 - (1.0 - semantic.stability) * g;
+}
+
+/* ================================================================
+ *  TIMBRE EVENT STATE — v5.3
+ *
+ *  A second event channel that catches structural changes onsets
+ *  miss: filter-openings, texture broadenings, timbre shifts.
+ *
+ *  Each band has a long-running EWMA (~3-5 second timescale). When
+ *  a band's current energy spikes above its long-term average by a
+ *  sharp ratio, a timbre event fires. activeBandMean tracks how
+ *  many bands are simultaneously active, catching "something new
+ *  just entered the mix".
+ *
+ *  eventFlash is the 0-1 decay signal that applies to visual
+ *  parameters. REFRACTORY_EVENT_FRAMES prevents event spam during
+ *  busy moments — onset events handle high-density rhythm, timbre
+ *  events should only fire on genuine structural shifts.
+ * ================================================================ */
+const bandLongMean       = [0, 0, 0, 0, 0];
+const BAND_LONG_ALPHA    = 0.006;   // ~3s EWMA at 60fps
+let   activeBandMean     = 0;
+const ACTIVE_BAND_ALPHA  = 0.015;
+
+/* v5.6e: Micro/Macro event split.
+ * Micro = note/transient-level novelty: visible in the panel, only a
+ * tiny field nudge visually. Macro = structural change: rarer, allowed
+ * to reorganize the interference field without adding flash. */
+let   microFlash         = 0;
+let   microSmoothed      = 0;
+let   macroFlash         = 0;
+let   macroSmoothed      = 0;
+let   microAgeFrames     = 9999;
+let   macroAgeFrames     = 9999;
+let   microPatternLevel  = 0;       // habituation for repeated notes
+let   eventPolarity      = -1.0;    // -1=cool counter-wave, +1=warm counter-wave
+let   lastEventType      = 'none';
+const MICRO_DECAY_RATE   = 2.2;
+const MACRO_DECAY_RATE   = 1.10;
+let   lastMicroEventFrame = -100;
+let   lastMacroEventFrame = -100;
+const REFRACTORY_MICRO_FRAMES = 14; // ~0.23s: lets rhythm breathe
+const REFRACTORY_MACRO_FRAMES = 52; // ~0.87s: prevents structural spam
+const MICRO_TREBLE_RATIO  = 1.65;
+const MICRO_HIGHMID_RATIO = 1.55;
+const MACRO_TREBLE_RATIO  = 2.45;
+const MACRO_HIGHMID_RATIO = 2.20;
+const TREBLE_FLOOR        = 0.09;
+const HIGHMID_FLOOR       = 0.11;
+const ACTIVE_BAND_THRESH  = 0.09;
+const MACRO_WIDENING_STEP = 1.30;
+
+const emotion = { valence: 0.5, arousal: 0.0, tension: 0.0 };
+
+function asymLerp(cur, tgt, attack, release) {
+  const rate = (tgt > cur) ? attack : release;
+  return cur + (tgt - cur) * rate;
+}
+
+function analyzeAudio() {
+  frameCount++;
+  microAgeFrames++;
+  macroAgeFrames++;
+
+  if (!analyser || !isPlaying) {
+    for (let i = 0; i < 5; i++) perBandSmooth[i] *= 0.94;
+    bandSmooth.bass   *= 0.94;
+    bandSmooth.lowMid *= 0.94;
+    bandSmooth.mid    *= 0.94;
+    bandSmooth.treble *= 0.94;
+    bandSmooth.energy *= 0.94;
+    fluxSmooth *= 0.92;
+    pulse      *= 0.88;
+    onsetDensity *= 0.94;
+    onsetsPerSec *= 0.92;
+    balance = balance + (0.5 - balance) * 0.015;
+    warmCoolBalance = warmCoolBalance + (0.5 - warmCoolBalance) * 0.02;
+    semantic.loudness *= 0.86;
+    semantic.brightness = semantic.brightness + (0.5 - semantic.brightness) * 0.12;
+    semantic.flatness *= 0.86;
+    semantic.bandwidth *= 0.86;
+    semantic.density *= 0.86;
+    semantic.novelty *= 0.78;
+    semantic.stability = semantic.stability + (1.0 - semantic.stability) * 0.10;
+    semantic.rhythm *= 0.86;
+    semantic.bassEntry *= 0.80;
+    semantic.tonalConfidence *= 0.84;
+    semantic.majorLean = semantic.majorLean + (0.5 - semantic.majorLean) * 0.10;
+    for (let i = 0; i < semanticSlowVec.length; i++) semanticSlowVec[i] *= 0.985;
+    emotion.arousal *= 0.94;
+    emotion.tension *= 0.92;
+    emotion.valence  = emotion.valence + (0.5 - emotion.valence) * 0.012;
+    microFlash = Math.max(0, microFlash - MICRO_DECAY_RATE / 60);
+    macroFlash = Math.max(0, macroFlash - MACRO_DECAY_RATE / 60);
+    microSmoothed = asymLerp(microSmoothed, 0, 0.30, 0.10);
+    macroSmoothed = asymLerp(macroSmoothed, 0, 0.24, 0.08);
+    updatePanelBars();
+    return;
+  }
+
+  prevFreqData.set(freqData);
+  analyser.getByteFrequencyData(freqData);
+
+  const sr = (audioCtx && audioCtx.sampleRate) ? audioCtx.sampleRate : 44100;
+  const binHz = sr / analyser.fftSize;
+  const binIdx = (hz) => Math.max(1, Math.min(freqData.length - 1, Math.round(hz / binHz)));
+  const sumRange = (lo, hi) => {
+    let sum = 0, n = 0;
+    for (let i = lo; i <= hi; i++) { sum += freqData[i]; n++; }
+    return (n > 0) ? sum / n / 255 : 0;
+  };
+
+  for (let i = 0; i < 5; i++) {
+    const lo = binIdx(BAND_RANGES[i][0]);
+    const hi = binIdx(BAND_RANGES[i][1]);
+    perBand[i] = sumRange(lo, hi);
+    perBandSmooth[i] = asymLerp(perBandSmooth[i], perBand[i], 0.35, 0.09);
+  }
+
+  bands.bass   = perBand[0] * 0.5 + perBand[1] * 0.5;
+  bands.lowMid = perBand[1] * 0.4 + perBand[2] * 0.2;
+  bands.mid    = perBand[2] * 0.8 + perBand[3] * 0.2;
+  bands.treble = perBand[3] * 0.5 + perBand[4] * 0.5;
+  bands.energy = perBand[0]*0.2 + perBand[1]*0.2 + perBand[2]*0.3 + perBand[3]*0.2 + perBand[4]*0.1;
+
+  bandSmooth.bass   = asymLerp(bandSmooth.bass,   bands.bass,   0.40, 0.08);
+  bandSmooth.lowMid = asymLerp(bandSmooth.lowMid, bands.lowMid, 0.22, 0.07);
+  bandSmooth.mid    = asymLerp(bandSmooth.mid,    bands.mid,    0.20, 0.06);
+  bandSmooth.treble = asymLerp(bandSmooth.treble, bands.treble, 0.22, 0.07);
+  bandSmooth.energy = asymLerp(bandSmooth.energy, bands.energy, 0.22, 0.06);
+
+  /* Warm/cool balance — reports raw audio content distribution
+   * using Focus-mode perceptual weighting. Mode-independent on
+   * purpose: this tells you what the MUSIC is, regardless of how
+   * the current mode chooses to render it. */
+  const warmSum = perBandSmooth[0] * 1.0 + perBandSmooth[1] * 1.0 + perBandSmooth[2] * 0.3;
+  const coolSum = (perBandSmooth[2] * 0.7 + perBandSmooth[3] * 1.0 + perBandSmooth[4] * 1.0) * COOL_BOOST_UI;
+  const bal = warmSum / (warmSum + coolSum + 0.02);
+  warmCoolBalance = warmCoolBalance + (bal - warmCoolBalance) * 0.04;
+
+  const loBin = binIdx(60);
+  const hiBin = binIdx(8000);
+  let flux = 0;
+  for (let i = loBin; i <= hiBin; i++) {
+    const diff = (freqData[i] - prevFreqData[i]) / 255;
+    if (diff > 0) flux += diff;
+  }
+  flux /= (hiBin - loBin);
+  const fluxInst = Math.min(1, flux * 8);
+  fluxSmooth = asymLerp(fluxSmooth, fluxInst, 0.25, 0.06);
+
+  fluxMean = 0.985 * fluxMean + 0.015 * fluxInst;
+  const adaptiveThreshold = Math.max(FLUX_FLOOR, fluxMean * ADAPTIVE_FACTOR);
+  if (fluxInst > adaptiveThreshold && (frameCount - lastOnsetFrame) > REFRACTORY_FRAMES) {
+    lastOnsetFrame = frameCount;
+    onsetFrames.push(frameCount);
+  }
+  while (onsetFrames.length && (frameCount - onsetFrames[0]) > ONSET_WINDOW_FRAMES) {
+    onsetFrames.shift();
+  }
+  const opsRaw = onsetFrames.length / 3.0;
+  onsetsPerSec = asymLerp(onsetsPerSec, opsRaw, 0.15, 0.08);
+  onsetDensity = asymLerp(onsetDensity, Math.min(1, opsRaw / 4.0), 0.18, 0.07);
+
+  const pulseTarget = Math.min(1, bands.bass * 0.9 + fluxInst * 0.2);
+  pulse = asymLerp(pulse, pulseTarget, 0.45, 0.10);
+
+  const upperSum = bandSmooth.treble * 1.25 + bandSmooth.mid * 0.70;
+  const lowerSum = bandSmooth.bass   * 1.00 + bandSmooth.lowMid * 0.60;
+  const rawBalance = upperSum / (upperSum + lowerSum + 0.015);
+  balance = balance + (rawBalance - balance) * 0.05;
+  const valTarget = Math.max(0.05, Math.min(0.95, (balance - 0.22) * 1.85));
+  emotion.valence = emotion.valence + (valTarget - emotion.valence) * 0.035;
+
+  const activityMult = 0.25 + onsetDensity * 0.75;
+  const rawArousal = (bandSmooth.energy * 0.65 + bandSmooth.bass * 0.25) * activityMult;
+  const arTarget = Math.max(0, Math.min(1, rawArousal * 1.4));
+  emotion.arousal = asymLerp(emotion.arousal, arTarget, 0.20, 0.06);
+
+  const tenTarget = Math.max(0, fluxSmooth - 0.08) * 1.2;
+  emotion.tension = asymLerp(emotion.tension, Math.min(1, tenTarget), 0.22, 0.10);
+
+  /* ============================================================
+   *  Timbre event detection — v5.3
+   *
+   *  Update long-term band means, count currently-active bands,
+   *  then fire an event if something spikes above its own average
+   *  or the active count widens noticeably. Refractory period
+   *  prevents spam during high-density rhythmic moments (onset
+   *  detector already handles those; timbre events are for the
+   *  slower-moving structural shifts). */
+  for (let i = 0; i < 5; i++) {
+    bandLongMean[i] = (1 - BAND_LONG_ALPHA) * bandLongMean[i]
+                    + BAND_LONG_ALPHA * perBandSmooth[i];
+  }
+  let activeCount = 0;
+  for (let i = 0; i < 5; i++) {
+    if (perBandSmooth[i] > ACTIVE_BAND_THRESH) activeCount++;
+  }
+  activeBandMean = (1 - ACTIVE_BAND_ALPHA) * activeBandMean
+                 + ACTIVE_BAND_ALPHA * activeCount;
+
+  const trebleRatio  = perBandSmooth[4] / (bandLongMean[4] + 0.035);
+  const highMidRatio = perBandSmooth[3] / (bandLongMean[3] + 0.035);
+  const longEnergy = bandLongMean[0]*0.2 + bandLongMean[1]*0.2 + bandLongMean[2]*0.3 + bandLongMean[3]*0.2 + bandLongMean[4]*0.1;
+  const longBass   = bandLongMean[0]*0.5 + bandLongMean[1]*0.5;
+  const activeDelta = activeCount - activeBandMean;
+
+
+  /* ============================================================
+   *  v5.8 Semantic Mapping Alpha
+   *
+   *  These features are now trusted enough for conservative visual
+   *  influence. A silence gate protects all ratio-based features from
+   *  interpreting digital silence as bright/noisy/low-valence music.
+   * ============================================================ */
+  const specLo = binIdx(40);
+  const specHi = binIdx(14000);
+  let magSum = 0, magSqSum = 0, logMagSum = 0, weightSum = 0, fSum = 0, f2Sum = 0, specN = 0;
+  for (let i = specLo; i <= specHi; i++) {
+    const f = i * binHz;
+    const m = freqData[i] / 255;
+    const mm = Math.max(0.0001, m);
+    const w = m * m + 1e-7;
+    magSum += m;
+    magSqSum += m * m;
+    logMagSum += Math.log(mm);
+    weightSum += w;
+    fSum += f * w;
+    f2Sum += f * f * w;
+    specN++;
+  }
+
+  let loudnessInst = clamp01(Math.sqrt(magSqSum / Math.max(1, specN)) * 1.35);
+  const signalGate = sstep(0.022, 0.075, loudnessInst);
+
+  let centroidHz = fSum / (weightSum + 1e-7);
+  let brightnessInst = clamp01(Math.log2(Math.max(80, centroidHz) / 80) / Math.log2(12000 / 80));
+  let bandwidthHz = Math.sqrt(Math.max(0, f2Sum / (weightSum + 1e-7) - centroidHz * centroidHz));
+  let bandwidthInst = clamp01(bandwidthHz / 4300);
+  const arithMean = magSum / Math.max(1, specN);
+  let flatnessInst = clamp01((Math.exp(logMagSum / Math.max(1, specN)) / (arithMean + 1e-4)) * 1.12);
+  let densityInst = clamp01((activeCount / 5) * 0.36 + loudnessInst * 0.24 + bandwidthInst * 0.22 + flatnessInst * 0.18);
+  let rhythmInst = clamp01(onsetDensity * 0.72 + pulse * 0.23 + clamp01(onsetsPerSec / 8.0) * 0.05);
+  let bassEntryInst = clamp01(Math.max(0, (bandSmooth.bass / (longBass + 0.045) - 1.0) / 1.35) * clamp01(bandSmooth.bass * 3.0));
+
+  const chroma = new Array(12).fill(0);
+  const chrLo = binIdx(80);
+  const chrHi = binIdx(5000);
+  for (let i = chrLo; i <= chrHi; i++) {
+    const f = i * binHz;
+    const m = freqData[i] / 255;
+    const w = m * m;
+    if (w < 0.00002) continue;
+    const midi = 69 + 12 * Math.log2(f / 440);
+    let pc = Math.round(midi) % 12;
+    if (pc < 0) pc += 12;
+    chroma[pc] += w;
+  }
+  let chromaSum = chroma.reduce((a,b) => a + b, 0);
+  if (chromaSum > 0) {
+    for (let i = 0; i < 12; i++) chroma[i] /= chromaSum;
+  }
+  let bestMaj = 0, bestMin = 0;
+  for (let k = 0; k < 12; k++) {
+    bestMaj = Math.max(bestMaj, cosineSim(chroma, MAJOR_PROFILE, k));
+    bestMin = Math.max(bestMin, cosineSim(chroma, MINOR_PROFILE, k));
+  }
+  const bestTone = Math.max(bestMaj, bestMin);
+  let tonalConfInst = clamp01((bestTone - 0.58) / 0.32) * clamp01(1.0 - flatnessInst * 0.75) * clamp01(loudnessInst * 1.9);
+  let majorLeanInst = (tonalConfInst > 0.06) ? clamp01(bestMaj / (bestMaj + bestMin + 1e-6)) : 0.5;
+
+  /* Silence / near-silence gate. Without this, spectral ratios at zero
+   * energy become nonsense: brightness reads high, flatness reads 1.0,
+   * and valence collapses. The gate keeps silence semantically neutral. */
+  brightnessInst = 0.5 + (brightnessInst - 0.5) * signalGate;
+  flatnessInst *= signalGate;
+  bandwidthInst *= signalGate;
+  densityInst *= signalGate;
+  rhythmInst *= signalGate;
+  bassEntryInst *= signalGate;
+  tonalConfInst *= signalGate;
+  majorLeanInst = 0.5 + (majorLeanInst - 0.5) * signalGate;
+
+  const stateVec = [
+    loudnessInst, brightnessInst, flatnessInst, bandwidthInst, densityInst,
+    rhythmInst, bandSmooth.bass, bandSmooth.mid, bandSmooth.treble,
+    tonalConfInst * 0.5 + majorLeanInst * 0.5
+  ];
+  let dist = 0;
+  for (let i = 0; i < stateVec.length; i++) {
+    const d = stateVec[i] - semanticSlowVec[i];
+    dist += d * d;
+    semanticSlowVec[i] += d * (signalGate > 0.08 ? 0.0065 : 0.018);
+  }
+  let noveltyInst = clamp01(Math.sqrt(dist / stateVec.length) * 2.35 + Math.max(0, activeDelta) * 0.025);
+  noveltyInst *= signalGate;
+  let stabilityInst = clamp01(1.0 - noveltyInst * 0.80 - fluxInst * 0.18 - densityInst * 0.035 + tonalConfInst * 0.14);
+  if (signalGate < 0.05) {
+    noveltyInst = 0.0;
+    stabilityInst = 1.0;
+  }
+
+  semantic.loudness = asymLerp(semantic.loudness, loudnessInst, 0.24, 0.07);
+  semantic.brightness = asymLerp(semantic.brightness, brightnessInst, 0.16, 0.055);
+  semantic.flatness = asymLerp(semantic.flatness, flatnessInst, 0.18, 0.065);
+  semantic.bandwidth = asymLerp(semantic.bandwidth, bandwidthInst, 0.18, 0.065);
+  semantic.density = asymLerp(semantic.density, densityInst, 0.20, 0.065);
+  semantic.novelty = asymLerp(semantic.novelty, noveltyInst, 0.28, 0.10);
+  semantic.stability += (stabilityInst - semantic.stability) * ((stabilityInst < semantic.stability) ? 0.15 : 0.060);
+  semantic.rhythm = asymLerp(semantic.rhythm, rhythmInst, 0.18, 0.075);
+  semantic.bassEntry = asymLerp(semantic.bassEntry, bassEntryInst, 0.34, 0.10);
+  semantic.tonalConfidence = asymLerp(semantic.tonalConfidence, tonalConfInst, 0.12, 0.09);
+  semantic.majorLean = semantic.majorLean + (majorLeanInst - semantic.majorLean) * (tonalConfInst > 0.10 ? 0.045 : 0.018);
+  neutralizeSemanticForSilence(signalGate);
+
+  /* Micro events: single-note novelty. These are allowed to happen
+   * often, but they habituate quickly and only nudge the field. */
+  microPatternLevel *= 0.992;
+  const microRefractory = (frameCount - lastMicroEventFrame) < REFRACTORY_MICRO_FRAMES;
+  const microTreble  = trebleRatio  > MICRO_TREBLE_RATIO  && perBandSmooth[4] > TREBLE_FLOOR;
+  const microHighMid = highMidRatio > MICRO_HIGHMID_RATIO && perBandSmooth[3] > HIGHMID_FLOOR;
+  if (signalGate > 0.08 && !microRefractory && (microTreble || microHighMid)) {
+    const spikeNovelty = Math.max(
+      Math.max(0, (trebleRatio  - MICRO_TREBLE_RATIO)  / 2.4),
+      Math.max(0, (highMidRatio - MICRO_HIGHMID_RATIO) / 2.2)
+    );
+    const habituation = Math.min(0.62, microPatternLevel * 0.12);
+    const microContext = clamp01(0.35 + semantic.rhythm * 0.25 + semantic.novelty * 0.35 + semantic.loudness * 0.18);
+    const microStrength = Math.max(0.06, Math.min(0.24, 0.07 + spikeNovelty * 0.08 + fluxInst * 0.035))
+                        * (1.0 - habituation) * microContext;
+    microFlash = Math.max(microFlash, microStrength);
+    microAgeFrames = 0;
+    lastMicroEventFrame = frameCount;
+    microPatternLevel = Math.min(6.0, microPatternLevel + 1.0);
+    lastEventType = microTreble ? 'micro-treble' : 'micro-highmid';
+  }
+
+  /* Macro events: v5.8 derives structure from semantic novelty rather
+   * than treating a single bright transient as a drop. Macro now needs
+   * at least one structural clue: bass entry, density/energy jump, or
+   * broad active-band widening. */
+  const macroRefractory = (frameCount - lastMacroEventFrame) < REFRACTORY_MACRO_FRAMES;
+  const macroTreble  = trebleRatio  > MACRO_TREBLE_RATIO  && perBandSmooth[4] > 0.15;
+  const macroHighMid = highMidRatio > MACRO_HIGHMID_RATIO && perBandSmooth[3] > 0.18;
+  const widening = activeDelta >= MACRO_WIDENING_STEP && activeCount >= 3;
+  const energyJump = bandSmooth.energy > longEnergy * 1.42 && bandSmooth.energy > 0.17;
+  const bassEntry  = semantic.bassEntry > 0.34 || (bandSmooth.bass > longBass * 1.55 && bandSmooth.bass > 0.19);
+  const densityJump = semantic.novelty > 0.38 && semantic.density > 0.46;
+  const fluxBig    = fluxInst > Math.max(0.12, adaptiveThreshold * 1.70);
+
+  let macroScore = 0.0;
+  if (widening && semantic.density > 0.38) macroScore += 0.55;
+  if (energyJump && semantic.density > 0.34) macroScore += 0.55;
+  if (bassEntry)  macroScore += 0.85;
+  if (densityJump) macroScore += 0.45;
+  if (fluxBig && semantic.density > 0.46) macroScore += 0.22;
+  if ((macroTreble || macroHighMid) && semantic.density > 0.52 && semantic.novelty > 0.45) macroScore += 0.18;
+
+  const sparseTransientGuard = semantic.density < 0.42 && !bassEntry && bandSmooth.energy < 0.24;
+  if (sparseTransientGuard) macroScore *= 0.28;
+
+  if (signalGate > 0.10 && !macroRefractory && macroScore >= 1.05) {
+    const contrastPolarity = warmCoolBalance >= 0.5 ? -1.0 : 1.0;
+    const macroStrength = Math.max(0.18, Math.min(0.48,
+      0.13 + macroScore * 0.11 + semantic.novelty * 0.15 + semantic.bassEntry * 0.10
+    ));
+    macroFlash = Math.max(macroFlash, macroStrength);
+    macroAgeFrames = 0;
+    lastMacroEventFrame = frameCount;
+    eventPolarity = (macroTreble || macroHighMid) ? -1.0 : contrastPolarity;
+    lastEventType = bassEntry ? 'macro-bass' : (widening ? 'macro-widening' : 'macro-novelty');
+  }
+
+  microFlash = Math.max(0, microFlash - MICRO_DECAY_RATE / 60);
+  macroFlash = Math.max(0, macroFlash - MACRO_DECAY_RATE / 60);
+  microSmoothed = asymLerp(microSmoothed, microFlash, 0.18, 0.10);
+  macroSmoothed = asymLerp(macroSmoothed, macroFlash, 0.11, 0.055);
+
+  updatePanelBars();
+}
+
+function updatePanelBars() {
+  const eventCombined = Math.min(1, macroSmoothed + microSmoothed * 0.65);
+  setBar('mValence', emotion.valence);
+  setBar('mArousal', emotion.arousal);
+  setBar('mTension', emotion.tension);
+  setBar('mPulse',   pulse);
+  setBar('mEvent',   eventCombined);
+  setBar('mMicro',   microSmoothed);
+  setBar('mMacro',   macroSmoothed);
+  setBar('mWarmCool', warmCoolBalance);
+  setBar('mFlow', flowDriveSmooth);
+  setBar('mGroove', grooveDriveSmooth);
+  setBar('mDrive', driveDriveSmooth);
+  setBar('mBurst', burstDriveSmooth);
+  setBar('mLead', motionLeadValue);
+
+  setBar('mLoudness', semantic.loudness);
+  setBar('mBrightness', semantic.brightness);
+  setBar('mFlatness', semantic.flatness);
+  setBar('mDensity', semantic.density);
+  setBar('mNovelty', semantic.novelty);
+  setBar('mStability', semantic.stability);
+  setBar('mRhythm', semantic.rhythm);
+  setBar('mBassEntry', semantic.bassEntry);
+  setBar('mTonalConf', semantic.tonalConfidence);
+  setBar('mMajorLean', semantic.majorLean);
+
+  for (let i = 0; i < 5; i++) setBar('mBand' + i, perBandSmooth[i]);
+
+  setNumeric('nValence',  emotion.valence);
+  setNumeric('nArousal',  emotion.arousal);
+  setNumeric('nTension',  emotion.tension);
+  setNumeric('nPulse',    pulse);
+  setNumeric('nEvent',    eventCombined);
+  setNumeric('nMicro',    microSmoothed);
+  setNumeric('nMacro',    macroSmoothed);
+  setNumeric('nWarmCool', warmCoolBalance);
+  setNumeric('nFlow', flowDriveSmooth);
+  setNumeric('nGroove', grooveDriveSmooth);
+  setNumeric('nDrive', driveDriveSmooth);
+  setNumeric('nBurst', burstDriveSmooth);
+  setText('nLead', motionLead);
+
+  setNumeric('nLoudness', semantic.loudness);
+  setNumeric('nBrightness', semantic.brightness);
+  setNumeric('nFlatness', semantic.flatness);
+  setNumeric('nDensity', semantic.density);
+  setNumeric('nNovelty', semantic.novelty);
+  setNumeric('nStability', semantic.stability);
+  setNumeric('nRhythm', semantic.rhythm);
+  setNumeric('nBassEntry', semantic.bassEntry);
+  setNumeric('nTonalConf', semantic.tonalConfidence);
+  setNumeric('nMajorLean', semantic.majorLean);
+
+  for (let i = 0; i < 5; i++) setNumeric('nBand' + i, perBandSmooth[i]);
+}
+function setBar(id, v) {
+  const el = document.getElementById(id);
+  if (el) el.style.width = Math.min(100, Math.max(0, v * 100)) + '%';
+}
+function setNumeric(id, v) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = v.toFixed(2).replace(/^0/, '');
+}
+function setText(id, txt) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = txt;
+}
+
+/* ================================================================
+ *  LAYER 3 MAPPING
+ * ================================================================ */
+
+function sstep(a, b, x) {
+  const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+}
+
+function unlockForSource(i, arousal) {
+  switch (i) {
+    case 0: return sstep(0.22, 0.55, arousal);
+    case 1: return 1.0;
+    case 2: return 1.0;
+    case 3: return sstep(0.20, 0.50, arousal);
+    case 4: return sstep(0.40, 0.80, arousal);
+  }
+  return 0;
+}
+
+function updateSources(tSec, dt) {
+  const arousal = isPlaying ? emotion.arousal : 0;
+  const densityK = isPlaying ? semantic.density : 0;
+  const stabilityK = isPlaying ? semantic.stability : 1;
+  const rhythmK = isPlaying ? semantic.rhythm : 0;
+  const flatK = isPlaying ? semantic.flatness : 0;
+  const loudK = isPlaying ? semantic.loudness : 0;
+  const noveltyK = isPlaying ? semantic.novelty : 0;
+  const bassEntryK = isPlaying ? semantic.bassEntry : 0;
+  const instabilityK = 1.0 - stabilityK;
+  const semanticActivity = clamp01(arousal * 0.56 + densityK * 0.34 + rhythmK * 0.10);
+
+  /* v6 Motion Arbitration.
+   * Motion bars can all be high; Lead is decided by dramaturgic
+   * authority, not by a simple maximum. v6 pulls Drive slightly back
+   * from being the default active-song lead, lets Groove own stable
+   * pocket music, and keeps Burst as a short performance state.
+   */
+  const microDriveGlobal = Math.pow(Math.min(1.0, microSmoothed), 1.05);
+  const macroDriveGlobal = Math.pow(Math.min(1.0, macroSmoothed), 1.45);
+  const pocketK = clamp01(rhythmK * (0.58 + stabilityK * 0.42) * (1.0 - densityK * 0.14) * (1.0 - noveltyK * 0.20));
+  const releaseK = clamp01(densityK * 0.38 + arousal * 0.27 + loudK * 0.16 + rhythmK * 0.13 + bassEntryK * 0.12);
+
+  const flowTarget = clamp01(
+    stabilityK * 0.46 +
+    (1.0 - densityK) * 0.26 +
+    (1.0 - arousal) * 0.18 +
+    (1.0 - noveltyK) * 0.12 +
+    (1.0 - macroDriveGlobal) * 0.10 -
+    rhythmK * 0.10
+  );
+
+  const grooveTarget = clamp01(
+    pocketK * 0.96 +
+    stabilityK * 0.11 +
+    arousal * 0.05 +
+    (1.0 - flatK) * 0.06 -
+    releaseK * 0.045 -
+    burstDriveSmooth * 0.055
+  );
+
+  const driveGate = sstep(0.30, 0.74, densityK) * 0.33
+                  + sstep(0.30, 0.76, arousal) * 0.25
+                  + sstep(0.40, 0.88, rhythmK) * 0.13
+                  + sstep(0.26, 0.74, loudK) * 0.15
+                  + sstep(0.05, 0.36, bassEntryK) * 0.11;
+  const pocketBrake = pocketK * (0.075 + (densityK < 0.62 && releaseK < 0.56 ? 0.085 : 0.025));
+  const driveTarget = clamp01(
+    driveGate * (0.86 + bassEntryK * 0.30 + macroDriveGlobal * 0.16)
+    + releaseK * 0.12
+    - flowTarget * 0.12
+    - pocketBrake
+  );
+
+  const burstPeak = clamp01(
+    macroDriveGlobal * 1.20 +
+    bassEntryK * 0.58 +
+    Math.max(0.0, noveltyK - 0.36) * 1.05 +
+    Math.max(0.0, densityK - 0.55) * 0.20 +
+    driveTarget * 0.12
+  );
+
+  flowDriveSmooth += (flowTarget - flowDriveSmooth) * (0.020 - modeMix * 0.004);
+  grooveDriveSmooth += (grooveTarget - grooveDriveSmooth) * (0.052 - modeMix * 0.010);
+  driveDriveSmooth = asymLerp(driveDriveSmooth, driveTarget, 0.088 - modeMix * 0.018, 0.034 + modeMix * 0.006);
+  burstHoldSmooth = Math.max(burstPeak, burstHoldSmooth * Math.exp(-dt / (1.35 + modeMix * 0.45)));
+  burstDriveSmooth = asymLerp(burstDriveSmooth, clamp01(burstPeak * 0.58 + burstHoldSmooth * 0.86), 0.20 - modeMix * 0.05, 0.020 + modeMix * 0.005);
+  danceDriveSmooth = clamp01(driveDriveSmooth * 0.76 + grooveDriveSmooth * 0.24 + burstDriveSmooth * 0.32);
+
+  const rawFlowAuthority = clamp01(flowDriveSmooth * (1.05 - densityK * 0.22 - driveDriveSmooth * 0.18));
+  const rawGrooveAuthority = clamp01(
+    grooveDriveSmooth * 0.93 +
+    pocketK * 0.30 -
+    driveDriveSmooth * 0.07 -
+    burstDriveSmooth * 0.18 +
+    ((pocketK > 0.52 && releaseK < 0.62) ? 0.12 : 0.0)
+  );
+  const rawDriveAuthority = clamp01(
+    driveDriveSmooth * 1.02 +
+    releaseK * 0.16 +
+    densityK * 0.06 +
+    loudK * 0.05 +
+    bassEntryK * 0.08 -
+    flowDriveSmooth * 0.11 -
+    pocketK * 0.07 +
+    ((driveDriveSmooth > 0.42 && releaseK > 0.50) ? 0.08 : 0.0)
+  );
+  const rawBurstAuthority = clamp01(
+    burstDriveSmooth * (burstDriveSmooth > 0.18 ? 1.42 : 0.70) +
+    macroDriveGlobal * 0.12 +
+    bassEntryK * 0.08
+  );
+
+  flowAuthoritySmooth += (rawFlowAuthority - flowAuthoritySmooth) * 0.08;
+  grooveAuthoritySmooth += (rawGrooveAuthority - grooveAuthoritySmooth) * 0.09;
+  driveAuthoritySmooth = asymLerp(driveAuthoritySmooth, rawDriveAuthority, 0.13, 0.055);
+  burstAuthoritySmooth = asymLerp(burstAuthoritySmooth, rawBurstAuthority, 0.20, 0.040);
+
+  const driveLeadReady = driveAuthoritySmooth > 0.46 &&
+    (driveAuthoritySmooth > grooveAuthoritySmooth * 1.02 || releaseK > 0.68 || burstDriveSmooth > 0.32);
+  const grooveLeadReady = grooveAuthoritySmooth > 0.36 &&
+    (grooveAuthoritySmooth > driveAuthoritySmooth * 0.82 || pocketK > 0.58) &&
+    grooveAuthoritySmooth > flowAuthoritySmooth * 0.86;
+
+  if (burstAuthoritySmooth > 0.40 && burstAuthoritySmooth > Math.max(driveAuthoritySmooth, grooveAuthoritySmooth) * 0.88) {
+    motionLead = 'BURST';
+    motionLeadValue = burstAuthoritySmooth;
+  } else if (driveLeadReady) {
+    motionLead = 'DRIVE';
+    motionLeadValue = driveAuthoritySmooth;
+  } else if (grooveLeadReady) {
+    motionLead = 'GROOVE';
+    motionLeadValue = grooveAuthoritySmooth;
+  } else {
+    motionLead = 'FLOW';
+    motionLeadValue = flowAuthoritySmooth;
+  }
+
+  const driveVisK = Math.max(driveDriveSmooth * 0.96, driveAuthoritySmooth * 0.76);
+  const grooveVisK = Math.max(grooveDriveSmooth * 0.94, grooveAuthoritySmooth * 0.82);
+  const burstVisK = Math.max(burstDriveSmooth, burstAuthoritySmooth * 0.82);
+
+  const yCompress = 0.30 + semanticActivity * 0.58 + densityK * 0.14 - stabilityK * 0.035
+                  + driveVisK * 0.088 + burstVisK * 0.018 - flowDriveSmooth * 0.040;
+  const xScale    = 0.38 + semanticActivity * 0.46 + densityK * 0.25 - stabilityK * 0.030
+                  + driveVisK * 0.116 + burstVisK * 0.026 - flowDriveSmooth * 0.038;
+
+  /* Groove should feel like body pulse, not washing-machine rotation.
+   * Drive and Burst can rotate more, but only when their personality leads. */
+  const torqueTarget = burstDriveSmooth * (0.0140 - modeMix * 0.0048)
+                     + driveDriveSmooth * (0.0025 - modeMix * 0.0008);
+  macroTorque = asymLerp(macroTorque, torqueTarget, 0.15 - modeMix * 0.030, 0.032 + modeMix * 0.008);
+
+  const baseDrift = 0.0059 - modeMix * 0.0012 + flowDriveSmooth * (0.0018 - modeMix * 0.0006);
+  const grooveSteer = grooveDriveSmooth * (0.0046 - modeMix * 0.0015);
+  const driveSteer = driveDriveSmooth * (0.0142 - modeMix * 0.0045);
+  const unstableSteer = instabilityK * (0.0032 - modeMix * 0.0013) * (0.50 + driveDriveSmooth * 0.50);
+  const rotTarget = baseDrift + grooveSteer + driveSteer + unstableSteer + macroTorque;
+  const rotFollow = 0.040 + driveDriveSmooth * 0.028 + burstDriveSmooth * 0.028 - modeMix * 0.009;
+  rotSpeedSmooth += (rotTarget - rotSpeedSmooth) * Math.max(0.012, rotFollow);
+  globalRotAngle += rotSpeedSmooth * dt;
+  const globalRot = globalRotAngle;
+
+  for (let i = 0; i < N_SRC; i++) {
+    if (i === 5) {
+      srcHomes[i].x = 0.5;
+      srcHomes[i].y = 0.5;
+      srcTargetPos[i].x = 0.5;
+      srcTargetPos[i].y = 0.5;
+      srcCurrentPos[i].x = 0.5;
+      srcCurrentPos[i].y = 0.5;
+      const microDrive = microDriveGlobal;
+      const macroDrive = macroDriveGlobal;
+      const rippleAmp = microDrive * (0.30 - modeMix * 0.05)
+                      + macroDrive * (0.66 - modeMix * 0.08);
+      srcCurrentAmp[i] = asymLerp(srcCurrentAmp[i], rippleAmp, 0.16, 0.10);
+      continue;
+    }
+
+    const base = BASE_HOMES[i];
+    let hx = 0.5 + (base.x - 0.5) * xScale;
+    let hy = 0.5 + (base.y - 0.5) * yCompress;
+    const dx = hx - 0.5, dy = hy - 0.5;
+    const cosR = Math.cos(globalRot), sinR = Math.sin(globalRot);
+    hx = 0.5 + cosR * dx - sinR * dy;
+    hy = 0.5 + sinR * dx + cosR * dy;
+    srcHomes[i].x = hx;
+    srcHomes[i].y = hy;
+
+    const orbitRate = srcOrbitSpeed[i] * (0.66 + densityK * 0.34 + flatK * 0.12)
+                    + arousal * 0.14
+                    + grooveVisK * 0.07
+                    + driveVisK * 0.48
+                    + burstVisK * 0.22
+                    + instabilityK * (0.058 - modeMix * 0.016)
+                    - flowDriveSmooth * 0.052;
+    srcOrbitPhase[i] += dt * orbitRate;
+    const orbitX = Math.cos(srcOrbitPhase[i]) * srcOrbitRadius[i];
+    const orbitY = Math.sin(srcOrbitPhase[i]) * srcOrbitRadius[i];
+
+    const distHome = Math.hypot(dx, dy);
+    const dirX = distHome > 0.01 ? dx / distHome : 0;
+    const dirY = distHome > 0.01 ? dy / distHome : 0;
+    const microDrive = microDriveGlobal;
+    const macroDrive = macroDriveGlobal;
+    const eventRecoil = macroDrive * (0.0052 - modeMix * 0.0020) + microDrive * 0.0012;
+    const pulseExpand = pulse * (0.0128 + grooveVisK * 0.038 + driveVisK * 0.020 + burstVisK * 0.010 + densityK * 0.0055)
+                      + eventRecoil;
+
+    const targetX = hx + orbitX + dirX * pulseExpand;
+    const targetY = hy + orbitY + dirY * pulseExpand;
+
+    /* No-bounce follow, but Drive opens the throttle. Slow/Flow music
+     * gets graceful body-weight; fast dense tracks can loosen up. */
+    const followRate = 11.2
+      + densityK * 2.6
+      + grooveVisK * 3.0
+      + driveVisK * 10.8
+      + burstVisK * 7.6
+      + macroDrive * 4.0
+      - flowDriveSmooth * 2.8
+      - modeMix * 3.1;
+    followNoBounce(i, targetX, targetY, dt, followRate);
+
+    const sourceActivity = clamp01(arousal * 0.58 + densityK * 0.25 + rhythmK * 0.09 + grooveVisK * 0.04 + driveVisK * 0.18 + burstVisK * 0.05);
+    const unlock = isPlaying ? unlockForSource(i, sourceActivity) : (i === 1 || i === 2 ? 0.3 : 0);
+    const bandE = isPlaying ? perBandSmooth[i] : 0.2;
+    const eventDuck = 1.0 - Math.min(0.06, macroDrive * (0.055 - modeMix * 0.018));
+    const semanticGain = 0.92 + densityK * 0.15 + grooveVisK * 0.070 + driveVisK * 0.145 + burstVisK * 0.060 + flatK * 0.05 - stabilityK * 0.035;
+    const ampTarget = unlock * (0.10 + bandE * (1.36 + densityK * 0.20 + driveVisK * 0.22 + burstVisK * 0.075)) * eventDuck * semanticGain;
+    srcCurrentAmp[i] = srcCurrentAmp[i] + (ampTarget - srcCurrentAmp[i]) * (0.055 + grooveVisK * 0.005 + driveVisK * 0.020 + burstVisK * 0.010);
+  }
+}
+
+const params = {
+  waveNum: 42.0, flowSpeed: 5.0, boundarySharp: 28.0,
+  brightness: 0.30, valence: 0.5, arousal: 0.0, tension: 0.0
+};
+const paramTargets = { ...params };
+
+function mapEmotionToParams() {
+  if (!isPlaying) return;
+  /* v5.8.9 Motion Balance. Semantics still steer Interference,
+   * but Flow/Groove/Drive/Burst now have clearer personalities. */
+  const densityK = semantic.density;
+  const stabilityK = semantic.stability;
+  const instabilityK = 1.0 - stabilityK;
+  const rhythmK = semantic.rhythm;
+  const brightK = semantic.brightness;
+  const flatK = semantic.flatness;
+  const noveltyK = semantic.novelty;
+  const flowK = flowDriveSmooth;
+  const grooveMotionK = Math.max(grooveDriveSmooth * 0.92, grooveAuthoritySmooth * 0.76);
+  const driveK = Math.max(driveDriveSmooth, driveAuthoritySmooth * 0.86);
+  const burstK = Math.max(burstDriveSmooth, burstAuthoritySmooth * 0.82);
+  const microK = Math.pow(Math.min(1.0, microSmoothed), 1.20);
+  const macroK = Math.pow(Math.min(1.0, Math.max(macroSmoothed, noveltyK * 0.18, burstK * 0.32)), 1.42);
+  const tonalBias = (semantic.tonalConfidence > 0.38) ? (semantic.majorLean - 0.5) * 0.10 : 0.0;
+
+  paramTargets.waveNum = 22.0
+    + emotion.arousal * 21.5
+    + densityK * 14.8
+    + flatK * 5.2
+    + instabilityK * 4.3
+    - stabilityK * 1.8
+    + grooveMotionK * 1.1
+    + driveK * (6.1 - modeMix * 1.6)
+    + burstK * (1.55 - modeMix * 0.45)
+    - flowK * 3.4
+    + macroK * (1.20 - modeMix * 0.44)
+    + microK * 0.16;
+
+  paramTargets.flowSpeed = 3.0
+    + emotion.arousal * 3.8
+    + rhythmK * 3.7
+    + grooveMotionK * 1.7
+    + driveK * (2.75 - modeMix * 0.85)
+    + burstK * (0.46 - modeMix * 0.14)
+    + instabilityK * 1.0
+    - flowK * 0.55
+    + pulse * (1.48 + grooveMotionK * 2.15 + driveK * 1.25 + burstK * 0.46)
+    + macroK * (0.23 - modeMix * 0.08);
+
+  paramTargets.boundarySharp = 22.0
+    + pulse * (4.0 + grooveMotionK * 4.4 + driveK * 2.1 + burstK * 0.95)
+    + densityK * 2.4
+    + flatK * 3.8
+    + instabilityK * 3.2
+    + driveK * 2.65
+    + burstK * 1.60
+    - flowK * 1.9
+    - stabilityK * 1.0
+    + macroK * (0.48 - modeMix * 0.17);
+
+  paramTargets.brightness = 0.20
+    + bandSmooth.energy * 0.465
+    + semantic.loudness * 0.165
+    + brightK * 0.042
+    + grooveMotionK * 0.010
+    + driveK * 0.032
+    + burstK * 0.010
+    - flowK * 0.010
+    + pulse * (0.072 + grooveMotionK * 0.032 + driveK * 0.022 + burstK * 0.010);
+
+  paramTargets.valence = clamp01(emotion.valence + tonalBias + (brightK - 0.5) * 0.06);
+  paramTargets.arousal = clamp01(emotion.arousal * 0.70 + densityK * 0.14 + rhythmK * 0.08 + grooveMotionK * 0.035 + driveK * 0.12 + burstK * 0.04 - flowK * 0.03);
+  paramTargets.tension = clamp01(emotion.tension * 0.70 + flatK * 0.11 + instabilityK * 0.10 + driveK * 0.10 + burstK * 0.04 - flowK * 0.08);
+}
+
+function applyIdleParams(tSec) {
+  const slow = 0.5 + 0.5 * Math.sin(tSec * 0.04);
+  paramTargets.waveNum       = 26.0 + slow * 5.0;
+  paramTargets.flowSpeed     = 3.5;
+  paramTargets.boundarySharp = 26.0;
+  paramTargets.brightness    = 0.24 + slow * 0.06;
+  paramTargets.valence       = 0.5 + Math.sin(tSec * 0.0035) * 0.08;
+  paramTargets.arousal       = 0.0;
+  paramTargets.tension       = 0.0;
+}
+
+function applyBootParams(k) {
+  const e = k * k * (3 - 2 * k);
+  paramTargets.waveNum       = 20.0 + e * 8.0;
+  paramTargets.flowSpeed     = 2.0 + e * 2.0;
+  paramTargets.boundarySharp = 14.0 + e * 12.0;
+  paramTargets.brightness    = e * 0.28;
+  paramTargets.valence       = 0.5;
+  paramTargets.arousal       = 0.0;
+  paramTargets.tension       = 0.0;
+}
+
+/* Current value of the harmonic drift bias. Computed per-frame in
+ * smoothParams(). Only applied when user is in (or morphing toward)
+ * Ambient — in Focus this is pushed but has no effect since the
+ * shader gates it behind u_modeMix. */
+let harmonicBias = 0;
+
+function smoothParams() {
+  params.waveNum       = params.waveNum + (paramTargets.waveNum - params.waveNum) * 0.05;
+  params.flowSpeed     = asymLerp(params.flowSpeed, paramTargets.flowSpeed, 0.20, 0.06);
+  params.boundarySharp = params.boundarySharp + (paramTargets.boundarySharp - params.boundarySharp) * 0.08;
+  params.brightness    = asymLerp(params.brightness, paramTargets.brightness, 0.32, 0.10);
+  params.valence       = params.valence + (paramTargets.valence - params.valence) * 0.018;
+  params.arousal       = asymLerp(params.arousal, paramTargets.arousal, 0.16, 0.05);
+  params.tension       = asymLerp(params.tension, paramTargets.tension, 0.22, 0.08);
+
+  /* Mode morph — lerp modeMix toward the selected mode.
+   * Snaps to exact target when very close so GPU doesn't keep
+   * recomputing tiny differences forever. */
+  const modeTarget = (currentMode === MODE_AMBIENT) ? 1.0 : 0.0;
+  modeMix += (modeTarget - modeMix) * MODE_TRANSITION_RATE;
+  if (Math.abs(modeMix - modeTarget) < 0.0008) modeMix = modeTarget;
+}
+
+/* ================================================================
+ *  HARMONIC DRIFT (Ambient meta-modulation)
+ *
+ *  Two incommensurate sines sum to a non-periodic-feeling bias.
+ *  Multiplied by modeMix so Focus sees zero bias (clean truth).
+ *
+ *  The bias enters the Ambient classifier as an additive term,
+ *  shifting the "zero-crossing" of diff. With ±0.3 range and the
+ *  sigmoid boundary sharpness around 26, this translates into an
+ *  area-ratio swing of roughly [0.4, 0.6] — from 2:3 cool-lean
+ *  through 1:1 balance to 3:2 warm-lean and back.
+ * ================================================================ */
+function computeHarmonicBias(tSec) {
+  const w1 = 2 * Math.PI / HARMONIC_PRIMARY_PERIOD;
+  const w2 = 2 * Math.PI / HARMONIC_SECONDARY_PERIOD;
+  const raw = Math.sin(tSec * w1) * HARMONIC_PRIMARY_AMP
+            + Math.sin(tSec * w2 + 1.37) * HARMONIC_SECONDARY_AMP;
+  /* Only apply bias when we're actually in (or morphing toward) Ambient */
+  harmonicBias = raw * modeMix;
+}
+
+/* ================================================================
+ *  RENDER LOOP
+ * ================================================================ */
+
+const t0 = performance.now();
+let frc = 0, lastFt = t0;
+let canvasBooted = false;
+const fpsEl = document.getElementById('fps');
+
+let jitterPhase = 0;
+let lastFrameTime = t0;
+
+function frame(now) {
+  const tSec = (now - t0) / 1000;
+  const dt   = Math.min(0.05, (now - lastFrameTime) / 1000);
+  lastFrameTime = now;
+
+  const bootT = Math.min(1, (now - t0) / BOOT_DURATION_MS);
+  if (!canvasBooted && bootT > 0.02) {
+    canvas.classList.add('booted');
+    canvasBooted = true;
+  }
+
+  analyzeAudio();
+
+  if (bootT < 1) applyBootParams(bootT);
+  else if (isPlaying) mapEmotionToParams();
+  else applyIdleParams(tSec);
+
+  updateSources(tSec, dt);
+  smoothParams();
+  computeHarmonicBias(tSec);
+
+  jitterPhase += dt * (0.35 + params.arousal * 0.65 + params.tension * 1.1 + pulse * (0.35 + semantic.rhythm * 0.55) + semantic.flatness * 0.30);
+
+  if (audioElement && audioElement.duration && sourceKind !== 'system' && isPlaying) {
+    const pct = (audioElement.currentTime / audioElement.duration) * 100;
+    document.getElementById('progressFill').style.width = pct + '%';
+  }
+
+  gl.uniform1f(timeU,         tSec);
+  gl.uniform1f(waveU,         params.waveNum);
+  gl.uniform1f(flowU,         params.flowSpeed);
+  gl.uniform1f(sharpU,        params.boundarySharp);
+  gl.uniform1f(coolBoostU,    getCoolBoost());
+  gl.uniform1f(modeMixU,      modeMix);
+  gl.uniform1f(ambientBiasU,  harmonicBias);
+  const wb = PALETTES[currentPalette].warmBloom;
+  const cb = PALETTES[currentPalette].coolBloom;
+  gl.uniform3f(warmBloomU,    wb[0], wb[1], wb[2]);
+  gl.uniform3f(coolBloomU,    cb[0], cb[1], cb[2]);
+  gl.uniform1f(valenceU,      params.valence);
+  gl.uniform1f(arousalU,      params.arousal);
+  gl.uniform1f(tensionU,      params.tension);
+  gl.uniform1f(brightU,       params.brightness);
+  gl.uniform1f(bootU,         bootT);
+  gl.uniform1f(jitterU,       jitterPhase);
+  gl.uniform1f(pulseU,        pulse);
+  const microVisualPower = Math.pow(Math.min(1.0, microSmoothed), 1.05);
+  const macroVisualPower = Math.pow(Math.min(1.0, macroSmoothed), 1.55);
+  gl.uniform1f(microPowerU,  microVisualPower);
+  gl.uniform1f(macroPowerU,  macroVisualPower);
+  gl.uniform1f(macroAgeU,    macroAgeFrames / 60.0);
+  gl.uniform1f(eventPolarityU,eventPolarity);
+
+  for (let i = 0; i < N_SRC; i++) {
+    gl.uniform2f(srcPosU[i], srcCurrentPos[i].x, srcCurrentPos[i].y);
+    gl.uniform1f(srcAmpU[i], srcCurrentAmp[i]);
+    const c = getCurrentBandColor(i);
+    gl.uniform3f(srcColorU[i], c[0], c[1], c[2]);
+    gl.uniform1f(srcWarmWU[i], getBandWarmWeight(i));
+    gl.uniform1f(srcCoolWU[i], getBandCoolWeight(i));
+  }
+
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  frc++;
+  if (now - lastFt > 500) {
+    fpsEl.textContent = Math.round(frc / ((now - lastFt) / 1000)) + ' FPS';
+    frc = 0; lastFt = now;
+  }
+  requestAnimationFrame(frame);
+}
+if (gl) requestAnimationFrame(frame);
+
+/* ================================================================
+ *  UI WIRING
+ * ================================================================ */
+
+function setNowPlaying(text) {
+  document.getElementById('nowPlaying').textContent = text || '\u00a0';
+}
+function showPlaybackControls(show) {
+  const el = document.getElementById('playbackControls');
+  el.classList.toggle('hidden', !show);
+  if (!show) document.getElementById('progressFill').style.width = '0%';
+}
+function showMappingPanel(show) {
+  document.getElementById('mappingPanel').classList.toggle('visible', show);
+}
+function updatePlayButton() {
+  document.getElementById('playBtn').textContent = (isPlaying && sourceKind !== 'system') ? '⏸' : '▶';
+}
+
+/* ================================================================
+ *  MODE + PALETTE SWITCHING
+ *
+ *  switchMode() updates currentMode (smoothParams lerps modeMix).
+ *  switchPalette() snaps the palette (no morph, see PALETTES comment).
+ *  Both refresh UI copy (button highlights, mode tag, subtitle).
+ *
+ *  Mode tag format: "v6 · <Mode> · <Palette>"
+ * ================================================================ */
+const MODE_COPY = {
+  focus: {
+    label: 'Focus',
+    subtitle: 'Vordergrundmodus: präzise, körperlich und direkt. Flow, Groove, Drive und Burst ' +
+              'greifen sichtbar in das Interferenzfeld ein — für aktives Hören, volle Dynamik ' +
+              'und die klarste musikalische Choreografie.'
+  },
+  ambient: {
+    label: 'Ambient',
+    subtitle: 'Raummodus: dieselbe semantische Musikinterpretation, aber mit größeren Atemzügen, ' +
+              'ruhigerem Rotationsdruck und sanfterer Bewegungsregie. Spektakulär genug zum ' +
+              'Driften, aber weniger fordernd für längere Sessions.'
+  }
+};
+
+function updateModeTag() {
+  const modeKey = (currentMode === MODE_AMBIENT) ? 'ambient' : 'focus';
+  const paletteName = PALETTES[currentPalette].displayName;
+  document.getElementById('modeTag').textContent =
+    'v6 · ' + MODE_COPY[modeKey].label + ' · ' + paletteName;
+}
+
+function switchMode(mode) {
+  const newMode = (mode === 'ambient') ? MODE_AMBIENT : MODE_FOCUS;
+  if (newMode === currentMode) return;
+  currentMode = newMode;
+
+  const key = (newMode === MODE_AMBIENT) ? 'ambient' : 'focus';
+  document.getElementById('subtitle').textContent = MODE_COPY[key].subtitle;
+  document.getElementById('btnFocus').classList.toggle('active', newMode === MODE_FOCUS);
+  document.getElementById('btnAmbient').classList.toggle('active', newMode === MODE_AMBIENT);
+  updateModeTag();
+}
+
+function switchPalette(palette) {
+  if (!PALETTES[palette] || palette === currentPalette) return;
+  currentPalette = palette;
+  document.getElementById('btnBlorange').classList.toggle('active', palette === 'blorange');
+  document.getElementById('btnAurora').classList.toggle('active', palette === 'aurora');
+  updateModeTag();
+}
+
+/* ================================================================
+ *  EVENT LISTENERS
+ * ================================================================ */
+
+document.getElementById('systemAudioBtn').addEventListener('click', () => { captureSystem(); });
+document.getElementById('uploadBtn').addEventListener('click', () => {
+  document.getElementById('fileInput').click();
+});
+document.getElementById('fileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) { const url = URL.createObjectURL(file); playDemoOrFile(url, file.name, 'file'); }
+});
+document.getElementById('btnFocus').addEventListener('click', () => switchMode('focus'));
+document.getElementById('btnAmbient').addEventListener('click', () => switchMode('ambient'));
+document.getElementById('btnBlorange').addEventListener('click', () => switchPalette('blorange'));
+document.getElementById('btnAurora').addEventListener('click', () => switchPalette('aurora'));
+document.getElementById('playBtn').addEventListener('click', async () => {
+  if (sourceKind === 'system') return;
+  if (!audioCtx) return;
+  if (audioElement.paused) {
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+    audioElement.play(); isPlaying = true;
+  } else {
+    audioElement.pause(); isPlaying = false;
+  }
+  updatePlayButton();
+});
+document.getElementById('progressBar').addEventListener('click', (e) => {
+  if (!audioElement || !audioElement.duration || sourceKind === 'system') return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const pct = (e.clientX - rect.left) / rect.width;
+  audioElement.currentTime = Math.max(0, Math.min(1, pct)) * audioElement.duration;
+});
+audioElement.addEventListener('ended', () => {
+  if (sourceKind === 'file') { isPlaying = false; updatePlayButton(); }
+});
+document.addEventListener('dragover', e => { e.preventDefault(); });
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (file && file.type.startsWith('audio/')) {
+    const url = URL.createObjectURL(file);
+    playDemoOrFile(url, file.name, 'file');
+  }
+});
+document.addEventListener('keydown', (e) => {
+  /* Ignore if user is typing in an input field (future-proofing) */
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  if (e.key === 'm' || e.key === 'M') {
+    const panel = document.getElementById('mappingPanel');
+    panel.classList.toggle('visible', !panel.classList.contains('visible'));
+  }
+  if (e.key === 't' || e.key === 'T') {
+    switchMode(currentMode === MODE_FOCUS ? 'ambient' : 'focus');
+  }
+  if (e.key === 'p' || e.key === 'P') {
+    switchPalette(currentPalette === 'blorange' ? 'aurora' : 'blorange');
+  }
+});
+
+if (window.innerWidth > 720) {
+  setTimeout(() => {
+    document.getElementById('hint').classList.add('visible');
+    setTimeout(() => document.getElementById('hint').classList.remove('visible'), 3200);
+  }, 5000);
+}
+</script>
+
+</body>
+</html>
